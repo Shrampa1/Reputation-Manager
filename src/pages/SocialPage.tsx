@@ -1,8 +1,7 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   CalendarDays,
   Plus,
-  Sparkles,
   Star,
   Image as ImageIcon,
   Facebook,
@@ -18,10 +17,11 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { useIntegrations, useLocation, useReviews, useSocialPosts } from '@/hooks/useSupabaseData';
-import type { PostStatus, Review, SocialPost } from '@/types';
+import type { PostPlatform, PostStatus, Review, SocialPost } from '@/types';
 import { StarRating } from '@/components/ui/StarRating';
 import { Modal } from '@/components/ui/Modal';
 import { NewPostModal } from '@/components/social/NewPostModal';
+import { ContentPlanner } from '@/components/social/ContentPlanner';
 
 const platformIconMap: Record<string, typeof Facebook> = {
   facebook: Facebook,
@@ -45,24 +45,27 @@ const statusConfig: Record<PostStatus, { label: string; color: string }> = {
 
 const isEditable = (post: SocialPost) => post.status !== 'published' && post.status !== 'publishing';
 
-/** Pulls the quoted post text out of an AI suggestion like: Mon Oct 5 — "Tip: …" */
-function suggestionText(item: string) {
-  const quoted = item.match(/"(.+)"/);
-  if (quoted) return quoted[1];
-  const dash = item.indexOf('—');
-  return dash >= 0 ? item.slice(dash + 1).trim() : item;
+/** YYYY-MM-DD in the viewer's own timezone (not UTC), so evening posts land on the right day */
+function localDateKey(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-const calendarDays: { date: number | null; isoDate: string | null }[] = (() => {
-  const days: { date: number | null; isoDate: string | null }[] = [];
-  const firstDayOfWeek = 4;
-  for (let i = 0; i < firstDayOfWeek; i++) days.push({ date: null, isoDate: null });
-  for (let d = 1; d <= 31; d++) {
-    const iso = `2026-10-${String(d).padStart(2, '0')}`;
-    days.push({ date: d, isoDate: iso });
-  }
-  return days;
-})();
+function startOfMonth(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), 1);
+}
+
+/** Cells for one month: blanks before day 1 so it lands on its weekday, and after the last day to fill the week */
+function buildMonthGrid(month: Date): { date: number | null; isoDate: string | null }[] {
+  const year = month.getFullYear();
+  const m = month.getMonth();
+  const leading = new Date(year, m, 1).getDay();
+  const daysInMonth = new Date(year, m + 1, 0).getDate();
+  const cells: { date: number | null; isoDate: string | null }[] = [];
+  for (let i = 0; i < leading; i++) cells.push({ date: null, isoDate: null });
+  for (let d = 1; d <= daysInMonth; d++) cells.push({ date: d, isoDate: localDateKey(new Date(year, m, d)) });
+  while (cells.length % 7 !== 0) cells.push({ date: null, isoDate: null });
+  return cells;
+}
 
 export function SocialPage() {
   const { reviews, loading: reviewsLoading } = useReviews();
@@ -72,12 +75,16 @@ export function SocialPage() {
   const [composerOpen, setComposerOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<SocialPost | null>(null);
   const [composerContent, setComposerContent] = useState('');
+  const [composerPlatforms, setComposerPlatforms] = useState<PostPlatform[] | undefined>(undefined);
+  const [composerScheduleAt, setComposerScheduleAt] = useState<Date | null>(null);
   const [view, setView] = useState<'calendar' | 'list'>('calendar');
+  const [month, setMonth] = useState(() => startOfMonth(new Date()));
+  const calendarDays = useMemo(() => buildMonthGrid(month), [month]);
+  const todayKey = localDateKey(new Date());
+  const isCurrentMonth = month.getTime() === startOfMonth(new Date()).getTime();
+  const shiftMonth = (delta: number) => setMonth((m) => new Date(m.getFullYear(), m.getMonth() + delta, 1));
   const [graphicModalOpen, setGraphicModalOpen] = useState(false);
   const [selectedReview, setSelectedReview] = useState<Review | null>(null);
-  const [aiPrompt, setAiPrompt] = useState('');
-  const [aiGenerating, setAiGenerating] = useState(false);
-  const [aiResults, setAiResults] = useState<string[]>([]);
   const [toast, setToast] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -85,9 +92,11 @@ export function SocialPage() {
     setTimeout(() => setToast(null), 2500);
   };
 
-  const openComposer = (content = '') => {
+  const openComposer = (content = '', platforms?: PostPlatform[], scheduleAt: Date | null = null) => {
     setEditingPost(null);
     setComposerContent(content);
+    setComposerPlatforms(platforms);
+    setComposerScheduleAt(scheduleAt);
     setComposerOpen(true);
   };
 
@@ -102,33 +111,24 @@ export function SocialPage() {
     setGraphicModalOpen(true);
   };
 
-  const handleGenerateCalendar = () => {
-    setAiGenerating(true);
-    setTimeout(() => {
-      setAiGenerating(false);
-      setAiResults([
-        'Mon Oct 5 — "Tip: Don\'t ignore a slow drain — it could signal a bigger issue. Call us for a free inspection!"',
-        'Wed Oct 7 — "Behind the scenes: Meet our lead technician Marcus, 15 years of plumbing expertise!"',
-        'Fri Oct 9 — Customer spotlight: Share a recent 5-star review as a graphic post',
-        'Mon Oct 12 — "Fall is here! Schedule your water heater maintenance before winter hits."',
-        'Thu Oct 15 — "Did you know? Replacing old pipes can improve water pressure by up to 40%."',
-      ]);
-    }, 1500);
-  };
-
   const fiveStarReviews = reviews.filter((r) => r.rating === 5);
   const isLoading = reviewsLoading || postsLoading;
 
-  // Build calendar events from live posts
+  // Calendar events: scheduled posts by their scheduled time, "Publish now" posts by when they went out
   const calendarEvents = posts
-    .filter((p) => p.scheduled_for)
-    .map((p) => ({
+    .map((p) => ({ post: p, when: p.scheduled_for ?? p.published_at }))
+    .filter((e): e is { post: SocialPost; when: string } => Boolean(e.when))
+    .sort((a, b) => a.when.localeCompare(b.when))
+    .map(({ post: p, when }) => ({
       id: p.id,
       title: p.content.slice(0, 30) + (p.content.length > 30 ? '…' : ''),
-      date: p.scheduled_for!.slice(0, 10),
+      date: localDateKey(new Date(when)),
+      time: new Date(when).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
       platform: p.platform,
       status: p.status,
     }));
+  const monthKeyPrefix = localDateKey(month).slice(0, 7);
+  const postsThisMonth = calendarEvents.filter((e) => e.date.startsWith(monthKeyPrefix)).length;
 
   return (
     <div className="space-y-5">
@@ -188,61 +188,15 @@ export function SocialPage() {
           </div>
 
           {/* AI Content Calendar Generator */}
-          <div className="card p-5">
-            <div className="flex items-center gap-2.5 mb-3">
-              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-sky-400 to-sky-600 text-white">
-                <Sparkles className="w-4 h-4" />
-              </div>
-              <div>
-                <h2 className="text-base font-bold text-slate-900">AI Content Calendar Generator</h2>
-                <p className="text-xs text-slate-400">Describe your goals and let AI plan your posts</p>
-              </div>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <input
-                type="text"
-                value={aiPrompt}
-                onChange={(e) => setAiPrompt(e.target.value)}
-                placeholder="e.g., Generate 2 weeks of plumbing tips and customer highlights for October..."
-                className="input-field flex-1"
-              />
-              <button
-                onClick={handleGenerateCalendar}
-                disabled={aiGenerating}
-                className="btn-primary shrink-0"
-              >
-                {aiGenerating ? (
-                  <>
-                    <Sparkles className="w-4 h-4 animate-pulse" />
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-4 h-4" />
-                    Generate
-                  </>
-                )}
-              </button>
-            </div>
-
-            {aiResults.length > 0 && (
-              <div className="mt-4 space-y-2 animate-fade-in">
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Suggested Calendar</p>
-                {aiResults.map((item, i) => (
-                  <div key={i} className="flex items-start gap-2.5 p-3 rounded-xl bg-sky-50/40 border border-sky-100">
-                    <FileText className="w-4 h-4 text-sky-500 mt-0.5 shrink-0" />
-                    <p className="text-sm text-slate-700 flex-1">{item}</p>
-                    <button
-                      onClick={() => openComposer(suggestionText(item))}
-                      className="shrink-0 text-xs font-medium text-sky-600 hover:text-sky-700"
-                    >
-                      Add
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <ContentPlanner
+            location={location}
+            byProvider={byProvider}
+            onUseIdea={(idea, scheduleAt) => openComposer(idea.content, [idea.platform], scheduleAt)}
+            onDraftsAdded={(count) => {
+              showToast(`${count} draft${count === 1 ? '' : 's'} added to your calendar`);
+              refetchPosts();
+            }}
+          />
 
           {/* View toggle */}
           <div className="flex items-center gap-2">
@@ -270,11 +224,24 @@ export function SocialPage() {
           {view === 'calendar' && (
             <div className="card p-3 sm:p-5">
               <div className="flex items-center justify-between mb-4 px-1">
-                <h3 className="text-base font-bold text-slate-900">October 2026</h3>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900" aria-live="polite">
+                    {month.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    {postsThisMonth === 0 ? 'No posts this month' : `${postsThisMonth} post${postsThisMonth === 1 ? '' : 's'} this month`}
+                  </p>
+                </div>
                 <div className="flex items-center gap-1">
-                  <button className="btn-ghost text-xs px-2 py-1">‹</button>
-                  <button className="btn-ghost text-xs px-2 py-1">Today</button>
-                  <button className="btn-ghost text-xs px-2 py-1">›</button>
+                  <button onClick={() => shiftMonth(-1)} className="btn-ghost text-sm px-2.5 py-1" aria-label="Previous month">‹</button>
+                  <button
+                    onClick={() => setMonth(startOfMonth(new Date()))}
+                    disabled={isCurrentMonth}
+                    className="btn-ghost text-xs px-2 py-1"
+                  >
+                    Today
+                  </button>
+                  <button onClick={() => shiftMonth(1)} className="btn-ghost text-sm px-2.5 py-1" aria-label="Next month">›</button>
                 </div>
               </div>
 
@@ -304,7 +271,16 @@ export function SocialPage() {
                     >
                       {day.date && (
                         <>
-                          <p className={`text-xs font-medium mb-1 ${dayEvents.length > 0 ? 'text-sky-600' : 'text-slate-400'}`}>
+                          <p
+                            className={`text-xs font-medium mb-1 ${
+                              day.isoDate === todayKey
+                                ? 'inline-flex items-center justify-center w-5 h-5 rounded-full bg-sky-500 text-white'
+                                : dayEvents.length > 0
+                                ? 'text-sky-600'
+                                : 'text-slate-400'
+                            }`}
+                            aria-current={day.isoDate === todayKey ? 'date' : undefined}
+                          >
                             {day.date}
                           </p>
                           <div className="space-y-1">
@@ -314,6 +290,7 @@ export function SocialPage() {
                                 <button
                                   type="button"
                                   key={event.id}
+                                  title={`${event.time} · ${statusConfig[event.status]?.label ?? event.status}`}
                                   onClick={() => {
                                     const post = posts.find((p) => p.id === event.id);
                                     if (post) openEditor(post);
@@ -479,6 +456,8 @@ export function SocialPage() {
         byProvider={byProvider}
         post={editingPost}
         initialContent={composerContent}
+        initialPlatforms={composerPlatforms}
+        initialScheduleAt={composerScheduleAt}
         onSaved={(message) => {
           showToast(message);
           refetchPosts();

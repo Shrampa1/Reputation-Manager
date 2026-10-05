@@ -61,10 +61,24 @@ export interface NewPostModalProps {
   post?: SocialPost | null;
   /** Prefill content for a new post (e.g. from AI suggestions or a review) */
   initialContent?: string;
+  /** Preselect platforms for a new post (defaults to every connected platform) */
+  initialPlatforms?: PostPlatform[];
+  /** Preselect a schedule time for a new post; ignored if it's already in the past */
+  initialScheduleAt?: Date | null;
   onSaved: (message: string) => void;
 }
 
-export function NewPostModal({ isOpen, onClose, location, byProvider, post, initialContent, onSaved }: NewPostModalProps) {
+export function NewPostModal({
+  isOpen,
+  onClose,
+  location,
+  byProvider,
+  post,
+  initialContent,
+  initialPlatforms,
+  initialScheduleAt,
+  onSaved,
+}: NewPostModalProps) {
   const isEdit = Boolean(post);
   const { isAdmin } = useLocationContext();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -103,12 +117,17 @@ export function NewPostModal({ isOpen, onClose, location, byProvider, post, init
       }
     } else {
       const connected = PLATFORMS.map((p) => p.key).filter((p) => byProvider(PLATFORM_PROVIDER[p])?.status === 'connected');
-      setPlatforms(connected.length > 0 ? connected : ['facebook']);
+      setPlatforms(initialPlatforms?.length ? initialPlatforms : connected.length > 0 ? connected : ['facebook']);
       setContent(initialContent ?? '');
       setExistingMediaUrl(null);
       setImagePreview(null);
-      setMode('draft');
-      setScheduleAt(defaultScheduleTime());
+      if (initialScheduleAt && initialScheduleAt.getTime() > Date.now() + MIN_SCHEDULE_LEAD_MS) {
+        setMode('schedule');
+        setScheduleAt(toLocalInput(initialScheduleAt));
+      } else {
+        setMode('draft');
+        setScheduleAt(defaultScheduleTime());
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only reset on open
   }, [isOpen, post?.id]);
