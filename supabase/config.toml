@@ -1,0 +1,2 @@
+[functions.generate-ai-reply]
+verify_jwt = true
