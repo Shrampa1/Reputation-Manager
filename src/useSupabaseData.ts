@@ -193,12 +193,8 @@ export function useMemberRole() {
   return { role, isAdmin, loading };
 }
 
-/**
- * Owners/admins get full integration rows. Members only get provider + status
- * (via get_integration_statuses) — enough for the New Post form.
- */
 export function useIntegrations() {
-  const { location, loading: locationLoading, isAdmin } = useLocationContext();
+  const { location, loading: locationLoading } = useLocation();
   const organizationId = location?.organization_id;
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [loading, setLoading] = useState(true);
@@ -209,46 +205,29 @@ export function useIntegrations() {
       setLoading(false);
       return;
     }
-    if (isAdmin) {
-      const { data, error } = await supabase
-        .from('integrations')
-        .select('id, organization_id, provider, status, account_id, account_name, metadata, last_error, connected_at, updated_at')
-        .eq('organization_id', organizationId);
-      if (error) console.error('Failed to load integrations:', error.message);
-      setIntegrations((data as Integration[]) ?? []);
-    } else {
-      const { data, error } = await supabase.rpc('get_integration_statuses', { p_organization_id: organizationId });
-      if (error) console.error('Failed to load integration statuses:', error.message);
-      setIntegrations(
-        ((data as Pick<Integration, 'provider' | 'status'>[] | null) ?? []).map((row) => ({
-          ...row,
-          id: row.provider,
-          organization_id: organizationId,
-          account_id: null,
-          account_name: null,
-          metadata: {},
-          last_error: null,
-          connected_at: '',
-          updated_at: '',
-        }))
-      );
+    const { data, error } = await supabase
+      .from('integrations')
+      .select('id, organization_id, provider, status, account_id, account_name, metadata, last_error, connected_at, updated_at')
+      .eq('organization_id', organizationId);
+    if (error) {
+      console.error('Failed to load integrations:', error.message);
     }
+    setIntegrations((data as Integration[]) ?? []);
     setLoading(false);
-  }, [organizationId, isAdmin]);
+  }, [organizationId]);
 
   useEffect(() => {
     fetchIntegrations();
   }, [fetchIntegrations]);
 
   useEffect(() => {
-    // Realtime respects RLS, so only owners/admins receive integration changes
-    if (!organizationId || !isAdmin) return;
+    if (!organizationId) return;
     const channel = supabase
       .channel(`integrations:${organizationId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'integrations', filter: `organization_id=eq.${organizationId}` }, () => fetchIntegrations())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [organizationId, isAdmin, fetchIntegrations]);
+  }, [organizationId, fetchIntegrations]);
 
   const byProvider = useCallback(
     (provider: IntegrationProvider) => integrations.find((i) => i.provider === provider) ?? null,

@@ -14,7 +14,8 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
-import { useLeads } from '@/hooks/useSupabaseData';
+import { useLeads, useLocation } from '@/hooks/useSupabaseData';
+import { NewLeadModal } from '@/components/leads/NewLeadModal';
 import { conversations, leadStages } from '@/data/mockData';
 import type { LeadChannel, LeadStage, Lead, Conversation } from '@/types';
 
@@ -51,7 +52,9 @@ function getInitials(name: string): string {
 }
 
 export function LeadsPage() {
-  const { leads, loading, updateLeadStage } = useLeads();
+  const { leads, loading, updateLeadStage, refetch: refetchLeads } = useLeads();
+  const { location } = useLocation();
+  const [newLeadOpen, setNewLeadOpen] = useState(false);
   const [activeChannel, setActiveChannel] = useState<LeadChannel | 'all'>('all');
   const [selectedConv, setSelectedConv] = useState<Conversation | null>(conversations[0]);
   const [messageInput, setMessageInput] = useState('');
@@ -97,7 +100,7 @@ export function LeadsPage() {
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Leads & CRM</h1>
           <p className="text-sm text-slate-500 mt-1">Unified inbox, pipeline, and automated follow-ups.</p>
         </div>
-        <button className="btn-primary" onClick={() => showToast('New lead form opened')}>
+        <button className="btn-primary" onClick={() => setNewLeadOpen(true)}>
           <Plus className="w-4 h-4" />
           New Lead
         </button>
@@ -416,6 +419,16 @@ export function LeadsPage() {
           </div>
         )}
       </div>
+
+      <NewLeadModal
+        isOpen={newLeadOpen}
+        onClose={() => setNewLeadOpen(false)}
+        location={location}
+        onCreated={(name) => {
+          showToast(`${name} added to your pipeline`);
+          refetchLeads();
+        }}
+      />
 
       {/* Toast */}
       {toast && (

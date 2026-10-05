@@ -2,7 +2,6 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Star, MapPin, CalendarDays, Inbox, Sparkles, LogOut, Plug } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { getInitials } from '@/lib/user';
-import { useLocationContext } from '@/context/LocationContext';
 
 const navItems = [
   { label: 'Home', path: '/', icon: LayoutDashboard },
@@ -44,7 +43,6 @@ export function BottomNav() {
 
 export function MobileHeader() {
   const { user, signOut } = useAuth();
-  const { isAdmin } = useLocationContext();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -63,7 +61,6 @@ export function MobileHeader() {
         </div>
       </div>
       <div className="flex items-center gap-2">
-        {isAdmin && (
         <NavLink
           to="/integrations"
           title="Integrations"
@@ -76,7 +73,6 @@ export function MobileHeader() {
         >
           <Plug className="w-4 h-4" />
         </NavLink>
-        )}
         <NavLink
           to="/settings"
           title="Profile & Settings"

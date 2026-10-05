@@ -42,8 +42,8 @@ export interface Lead {
   created_at: string;
 }
 
-// Social Posts — DB enum: post_status (draft, scheduled, published)
-export type PostStatus = 'draft' | 'scheduled' | 'published';
+// Social Posts — DB enum: post_status (draft, scheduled, publishing, published, failed)
+export type PostStatus = 'draft' | 'scheduled' | 'publishing' | 'published' | 'failed';
 export type PostPlatform = 'facebook' | 'instagram' | 'google';
 
 export interface SocialPost {
@@ -51,10 +51,61 @@ export interface SocialPost {
   location_id: string;
   content: string;
   media_url: string | null;
-  platform: string;
+  platform: PostPlatform;
   scheduled_for: string | null;
   status: PostStatus;
+  published_at: string | null;
+  external_post_id: string | null;
+  external_url: string | null;
+  last_error: string | null;
   created_at: string;
+  updated_at: string;
+}
+
+// Integrations — DB enums: integration_provider, integration_status
+export type IntegrationProvider = 'google_business' | 'facebook' | 'instagram' | 'twilio';
+export type IntegrationStatus = 'connected' | 'error' | 'disconnected';
+
+export interface Integration {
+  id: string;
+  organization_id: string;
+  provider: IntegrationProvider;
+  status: IntegrationStatus;
+  account_id: string | null;
+  account_name: string | null;
+  metadata: Record<string, unknown>;
+  last_error: string | null;
+  connected_at: string;
+  updated_at: string;
+}
+
+export type MemberRole = 'owner' | 'admin' | 'member';
+
+// Activity log — written by database triggers, readable by owners/admins
+export type ActivityCategory = 'business' | 'team' | 'integrations' | 'posts' | 'leads' | 'reviews';
+
+export interface ActivityEntry {
+  id: string;
+  organization_id: string;
+  actor_id: string | null;
+  /** Name or email at the time; null for automatic actions (e.g. scheduled publishing) */
+  actor_label: string | null;
+  category: ActivityCategory;
+  action: string;
+  summary: string;
+  entity_id: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+// Row returned by the get_org_members() database function
+export interface TeamMember {
+  user_id: string;
+  email: string;
+  full_name: string | null;
+  role: MemberRole;
+  joined_at: string;
+  last_sign_in_at: string | null;
 }
 
 // Smart Tasks

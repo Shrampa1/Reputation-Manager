@@ -14,11 +14,14 @@ import {
   Send,
   Quote,
   Loader2,
+  AlertTriangle,
+  ExternalLink,
 } from 'lucide-react';
-import { useReviews, useSocialPosts } from '@/hooks/useSupabaseData';
-import type { PostStatus, Review } from '@/types';
+import { useIntegrations, useLocation, useReviews, useSocialPosts } from '@/hooks/useSupabaseData';
+import type { PostStatus, Review, SocialPost } from '@/types';
 import { StarRating } from '@/components/ui/StarRating';
 import { Modal } from '@/components/ui/Modal';
+import { NewPostModal } from '@/components/social/NewPostModal';
 
 const platformIconMap: Record<string, typeof Facebook> = {
   facebook: Facebook,
@@ -35,8 +38,20 @@ const platformColorMap: Record<string, string> = {
 const statusConfig: Record<PostStatus, { label: string; color: string }> = {
   draft: { label: 'Draft', color: 'bg-slate-100 text-slate-500' },
   scheduled: { label: 'Scheduled', color: 'bg-sky-50 text-sky-600' },
+  publishing: { label: 'Publishing…', color: 'bg-amber-50 text-amber-600' },
   published: { label: 'Published', color: 'bg-emerald-50 text-emerald-600' },
+  failed: { label: 'Failed', color: 'bg-rose-50 text-rose-600' },
 };
+
+const isEditable = (post: SocialPost) => post.status !== 'published' && post.status !== 'publishing';
+
+/** Pulls the quoted post text out of an AI suggestion like: Mon Oct 5 — "Tip: …" */
+function suggestionText(item: string) {
+  const quoted = item.match(/"(.+)"/);
+  if (quoted) return quoted[1];
+  const dash = item.indexOf('—');
+  return dash >= 0 ? item.slice(dash + 1).trim() : item;
+}
 
 const calendarDays: { date: number | null; isoDate: string | null }[] = (() => {
   const days: { date: number | null; isoDate: string | null }[] = [];
@@ -51,7 +66,12 @@ const calendarDays: { date: number | null; isoDate: string | null }[] = (() => {
 
 export function SocialPage() {
   const { reviews, loading: reviewsLoading } = useReviews();
-  const { posts, loading: postsLoading } = useSocialPosts();
+  const { posts, loading: postsLoading, refetch: refetchPosts } = useSocialPosts();
+  const { location } = useLocation();
+  const { byProvider } = useIntegrations();
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [editingPost, setEditingPost] = useState<SocialPost | null>(null);
+  const [composerContent, setComposerContent] = useState('');
   const [view, setView] = useState<'calendar' | 'list'>('calendar');
   const [graphicModalOpen, setGraphicModalOpen] = useState(false);
   const [selectedReview, setSelectedReview] = useState<Review | null>(null);
@@ -63,6 +83,18 @@ export function SocialPage() {
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 2500);
+  };
+
+  const openComposer = (content = '') => {
+    setEditingPost(null);
+    setComposerContent(content);
+    setComposerOpen(true);
+  };
+
+  const openEditor = (post: SocialPost) => {
+    if (!isEditable(post)) return;
+    setEditingPost(post);
+    setComposerOpen(true);
   };
 
   const openGraphicModal = (review: Review) => {
@@ -105,7 +137,7 @@ export function SocialPage() {
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Social Publisher</h1>
           <p className="text-sm text-slate-500 mt-1">Schedule posts, generate content, and turn reviews into graphics.</p>
         </div>
-        <button className="btn-primary" onClick={() => showToast('New post composer opened')}>
+        <button className="btn-primary" onClick={() => openComposer()}>
           <Plus className="w-4 h-4" />
           New Post
         </button>
@@ -201,7 +233,7 @@ export function SocialPage() {
                     <FileText className="w-4 h-4 text-sky-500 mt-0.5 shrink-0" />
                     <p className="text-sm text-slate-700 flex-1">{item}</p>
                     <button
-                      onClick={() => showToast('Post added to scheduler')}
+                      onClick={() => openComposer(suggestionText(item))}
                       className="shrink-0 text-xs font-medium text-sky-600 hover:text-sky-700"
                     >
                       Add
@@ -279,13 +311,18 @@ export function SocialPage() {
                             {dayEvents.map((event) => {
                               const Icon = platformIconMap[event.platform] || Globe;
                               return (
-                                <div
+                                <button
+                                  type="button"
                                   key={event.id}
-                                  className={`flex items-center gap-1 px-1.5 py-1 rounded text-[10px] font-medium ${platformColorMap[event.platform] || 'bg-slate-100 text-slate-500'} truncate cursor-pointer hover:opacity-80 transition-opacity`}
+                                  onClick={() => {
+                                    const post = posts.find((p) => p.id === event.id);
+                                    if (post) openEditor(post);
+                                  }}
+                                  className={`w-full text-left flex items-center gap-1 px-1.5 py-1 rounded text-[10px] font-medium ${platformColorMap[event.platform] || 'bg-slate-100 text-slate-500'} truncate cursor-pointer hover:opacity-80 transition-opacity`}
                                 >
                                   <Icon className="w-2.5 h-2.5 shrink-0" />
                                   <span className="truncate">{event.title}</span>
-                                </div>
+                                </button>
                               );
                             })}
                           </div>
@@ -310,7 +347,11 @@ export function SocialPage() {
                 const PlatformIcon = platformIconMap[post.platform] || Globe;
                 const status = statusConfig[post.status] || statusConfig.draft;
                 return (
-                  <div key={post.id} className="card card-hover p-4">
+                  <div
+                    key={post.id}
+                    className={`card card-hover p-4 ${isEditable(post) ? 'cursor-pointer' : ''}`}
+                    onClick={() => openEditor(post)}
+                  >
                     <div className="flex items-start gap-3">
                       <div className={`flex items-center justify-center w-9 h-9 rounded-lg ${platformColorMap[post.platform] || 'bg-slate-100 text-slate-500'} shrink-0`}>
                         <PlatformIcon className="w-5 h-5" />
@@ -326,6 +367,27 @@ export function SocialPage() {
                           </span>
                         </div>
                         <p className="text-sm text-slate-600 leading-relaxed">{post.content}</p>
+                        {post.media_url && (
+                          <img src={post.media_url} alt="" className="mt-2 h-20 w-auto rounded-lg border border-slate-100 object-cover" />
+                        )}
+                        {post.status === 'failed' && post.last_error && (
+                          <p className="flex items-start gap-1.5 mt-2 text-xs text-rose-600">
+                            <AlertTriangle className="w-3.5 h-3.5 mt-px shrink-0" />
+                            {post.last_error} — click to edit and retry.
+                          </p>
+                        )}
+                        {post.status === 'published' && post.external_url && (
+                          <a
+                            href={post.external_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex items-center gap-1 mt-2 text-xs font-medium text-sky-600 hover:text-sky-700"
+                          >
+                            View post
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -390,13 +452,13 @@ export function SocialPage() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => {
-                  showToast('Graphic posted to social media');
                   setGraphicModalOpen(false);
+                  openComposer(`"${selectedReview.content}" — ${selectedReview.author_name} ⭐⭐⭐⭐⭐`);
                 }}
                 className="btn-primary flex-1"
               >
                 <Send className="w-4 h-4" />
-                Post to Social
+                Use in a Post
               </button>
               <button
                 onClick={() => showToast('Image downloaded')}
@@ -409,6 +471,19 @@ export function SocialPage() {
           </div>
         )}
       </Modal>
+
+      <NewPostModal
+        isOpen={composerOpen}
+        onClose={() => setComposerOpen(false)}
+        location={location}
+        byProvider={byProvider}
+        post={editingPost}
+        initialContent={composerContent}
+        onSaved={(message) => {
+          showToast(message);
+          refetchPosts();
+        }}
+      />
 
       {/* Toast */}
       {toast && (

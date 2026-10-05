@@ -1,5 +1,5 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Star, MapPin, CalendarDays, Inbox, Sparkles, LogOut, Plug, UserCog, Users, History } from 'lucide-react';
+import { LayoutDashboard, Star, MapPin, CalendarDays, Inbox, Sparkles, LogOut, Plug, UserCog } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useLocationContext } from '@/context/LocationContext';
 import { displayName, getInitials } from '@/lib/user';
@@ -13,15 +13,13 @@ const navItems = [
 ];
 
 const settingsItems = [
-  { label: 'Integrations', path: '/integrations', icon: Plug, adminOnly: true },
-  { label: 'Team', path: '/team', icon: Users, adminOnly: false },
-  { label: 'Activity', path: '/activity', icon: History, adminOnly: true },
-  { label: 'Profile & Settings', path: '/settings', icon: UserCog, adminOnly: false },
+  { label: 'Integrations', path: '/integrations', icon: Plug },
+  { label: 'Profile & Settings', path: '/settings', icon: UserCog },
 ];
 
 export function Sidebar() {
   const { user, signOut } = useAuth();
-  const { organization, isAdmin } = useLocationContext();
+  const { organization } = useLocationContext();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -58,7 +56,7 @@ export function Sidebar() {
         ))}
 
         <p className="px-3 pt-5 pb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">Settings</p>
-        {settingsItems.filter((item) => isAdmin || !item.adminOnly).map((item) => (
+        {settingsItems.map((item) => (
           <NavLink
             key={item.path}
             to={item.path}

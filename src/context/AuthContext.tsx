@@ -44,39 +44,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signUp = useCallback(async (email: string, password: string, businessName: string) => {
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    // Store the business name on the user so the org can still be created on first
+    // sign-in if email confirmation is on (no session is returned until confirmed).
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { business_name: businessName } },
+    });
     if (error) return { error: error.message };
 
-    const userId = data.user?.id;
-    if (!userId) return { error: 'Sign-up succeeded but no user ID was returned.' };
+    if (!data.user?.id) return { error: 'Sign-up succeeded but no user ID was returned.' };
 
-    // Create organization
-    const { data: orgData, error: orgError } = await supabase
-      .from('organizations')
-      .insert({ name: businessName })
-      .select('id')
-      .single();
+    if (!data.session) {
+      return { error: null };
+    }
+
+    // Creates the organization, owner membership and default location in one
+    // server-side transaction (see migration 002_secure_org_membership).
+    const { error: orgError } = await supabase.rpc('create_organization_for_current_user', {
+      business_name: businessName,
+    });
 
     if (orgError) return { error: `Failed to create organization: ${orgError.message}` };
-
-    // Add user as owner
-    const { error: memberError } = await supabase
-      .from('organization_members')
-      .insert({ organization_id: orgData.id, user_id: userId, role: 'owner' });
-
-    if (memberError) return { error: `Failed to add membership: ${memberError.message}` };
-
-    // Create a default location
-    const { error: locError } = await supabase
-      .from('locations')
-      .insert({
-        organization_id: orgData.id,
-        name: businessName,
-        address: '123 Main Street, Austin, TX 78701',
-        phone: '(512) 555-0100',
-      });
-
-    if (locError) return { error: `Failed to create location: ${locError.message}` };
 
     return { error: null };
   }, []);

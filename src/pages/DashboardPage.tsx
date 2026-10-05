@@ -9,7 +9,6 @@ import {
   Minus,
   Sparkles,
   Zap,
-  MessageCircle,
   Share2,
   Users,
   ChevronRight,
@@ -18,7 +17,6 @@ import {
 } from 'lucide-react';
 import { useReviews, useLeads, useSmartTasks } from '@/hooks/useSupabaseData';
 import type { KPI } from '@/types';
-import { useAuth } from '@/context/AuthContext';
 
 const iconMap = {
   star: Star,
@@ -52,13 +50,8 @@ const priorityMap: Record<string, { label: string; color: string }> = {
   low: { label: 'Low', color: 'bg-slate-100 text-slate-500' },
 };
 
-function getInitials(name: string): string {
-  return name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase();
-}
-
 export function DashboardPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { reviews, loading: reviewsLoading } = useReviews();
   const { leads, loading: leadsLoading } = useLeads();
   const { tasks, loading: tasksLoading, completeTask } = useSmartTasks();
@@ -81,7 +74,6 @@ export function DashboardPage() {
   ];
 
   const isLoading = reviewsLoading || leadsLoading || tasksLoading;
-  const userInitials = getInitials(user?.email?.split('@')[0] || 'User');
 
   return (
     <div className="space-y-6">

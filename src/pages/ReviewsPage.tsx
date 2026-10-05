@@ -2,7 +2,6 @@ import { useState, useMemo } from 'react';
 import {
   Star,
   Search,
-  MessageSquare,
   Send,
   Sparkles,
   Check,
@@ -106,10 +105,8 @@ export function ReviewsPage() {
             'Authorization': `Bearer ${session.session?.access_token}`,
           },
           body: JSON.stringify({
+            // The function loads content/rating/business name itself (under RLS)
             reviewId: replyReview.id,
-            reviewContent: replyReview.content,
-            starRating: replyReview.rating,
-            businessName: location.name,
           }),
         }
       );

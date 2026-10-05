@@ -7,6 +7,11 @@ import { ReviewsPage } from '@/pages/ReviewsPage';
 import { SeoPage } from '@/pages/SeoPage';
 import { SocialPage } from '@/pages/SocialPage';
 import { LeadsPage } from '@/pages/LeadsPage';
+import { IntegrationsPage } from '@/pages/IntegrationsPage';
+import { SettingsPage } from '@/pages/SettingsPage';
+import { TeamPage } from '@/pages/TeamPage';
+import { ActivityPage } from '@/pages/ActivityPage';
+import { AdminRoute } from '@/components/AdminRoute';
 import { LoginPage } from '@/pages/LoginPage';
 import { SignupPage } from '@/pages/SignupPage';
 
@@ -30,6 +35,10 @@ function App() {
                     <Route path="/seo" element={<SeoPage />} />
                     <Route path="/social" element={<SocialPage />} />
                     <Route path="/leads" element={<LeadsPage />} />
+                    <Route path="/integrations" element={<AdminRoute><IntegrationsPage /></AdminRoute>} />
+                    <Route path="/activity" element={<AdminRoute><ActivityPage /></AdminRoute>} />
+                    <Route path="/settings" element={<SettingsPage />} />
+                    <Route path="/team" element={<TeamPage />} />
                   </Routes>
                 </main>
               </div>
