@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import type { Location, MemberRole, Organization } from '@/types';
 
-type LocationFields = Partial<Pick<Location, 'name' | 'address' | 'phone' | 'website'>>;
+type LocationFields = Partial<Pick<Location, 'name' | 'address' | 'phone' | 'website' | 'review_link' | 'review_shield_enabled'>>;
 
 interface LocationContextValue {
   location: Location | null;

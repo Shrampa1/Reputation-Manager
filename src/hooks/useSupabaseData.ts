@@ -24,7 +24,7 @@ export function useReviews() {
   const fetchReviews = useCallback(async () => {
     if (!location) {
       setReviews([]);
-      setLoading(false);
+      if (!locationLoading) setLoading(false);
       return;
     }
     const { data, error } = await supabase
@@ -37,7 +37,7 @@ export function useReviews() {
     }
     setReviews((data as Review[]) ?? []);
     setLoading(false);
-  }, [location]);
+  }, [location, locationLoading]);
 
   useEffect(() => {
     fetchReviews();
@@ -63,7 +63,7 @@ export function useLeads() {
   const fetchLeads = useCallback(async () => {
     if (!location) {
       setLeads([]);
-      setLoading(false);
+      if (!locationLoading) setLoading(false);
       return;
     }
     const { data, error } = await supabase
@@ -76,7 +76,7 @@ export function useLeads() {
     }
     setLeads((data as Lead[]) ?? []);
     setLoading(false);
-  }, [location]);
+  }, [location, locationLoading]);
 
   useEffect(() => {
     fetchLeads();
@@ -107,7 +107,7 @@ export function useSocialPosts() {
   const fetchPosts = useCallback(async () => {
     if (!location) {
       setPosts([]);
-      setLoading(false);
+      if (!locationLoading) setLoading(false);
       return;
     }
     const { data, error } = await supabase
@@ -120,7 +120,7 @@ export function useSocialPosts() {
     }
     setPosts((data as SocialPost[]) ?? []);
     setLoading(false);
-  }, [location]);
+  }, [location, locationLoading]);
 
   useEffect(() => {
     fetchPosts();
@@ -146,7 +146,7 @@ export function useSmartTasks() {
   const fetchTasks = useCallback(async () => {
     if (!location) {
       setTasks([]);
-      setLoading(false);
+      if (!locationLoading) setLoading(false);
       return;
     }
     const { data, error } = await supabase
@@ -160,7 +160,7 @@ export function useSmartTasks() {
     }
     setTasks((data as SmartTask[]) ?? []);
     setLoading(false);
-  }, [location]);
+  }, [location, locationLoading]);
 
   useEffect(() => {
     fetchTasks();
@@ -206,7 +206,7 @@ export function useIntegrations() {
   const fetchIntegrations = useCallback(async () => {
     if (!organizationId) {
       setIntegrations([]);
-      setLoading(false);
+      if (!locationLoading) setLoading(false);
       return;
     }
     if (isAdmin) {
@@ -234,7 +234,7 @@ export function useIntegrations() {
       );
     }
     setLoading(false);
-  }, [organizationId, isAdmin]);
+  }, [organizationId, isAdmin, locationLoading]);
 
   useEffect(() => {
     fetchIntegrations();

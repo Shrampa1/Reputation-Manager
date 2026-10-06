@@ -6,10 +6,9 @@ import {
   Sparkles,
   Check,
   Edit3,
-  Shield,
-  ShieldCheck,
-  Phone,
-  Smartphone,
+  Plus,
+  ExternalLink,
+  RefreshCw,
   Inbox as InboxIcon,
   Loader2,
   AlertCircle,
@@ -17,10 +16,15 @@ import {
 import { useReviews } from '@/hooks/useSupabaseData';
 import { supabase } from '@/lib/supabase';
 import { useLocation } from '@/hooks/useSupabaseData';
-import type { Review, ReviewPlatformFilter, ReviewRequestSettings } from '@/types';
+import type { Review, ReviewPlatformFilter } from '@/types';
 import { StarRating } from '@/components/ui/StarRating';
 import { PlatformIcon, PlatformLabel } from '@/components/ui/PlatformIcon';
 import { Modal } from '@/components/ui/Modal';
+import { ReviewRequestModal } from '@/components/reviews/ReviewRequestModal';
+import { ReviewRequestsPanel } from '@/components/reviews/ReviewRequestsPanel';
+import { AddReviewModal } from '@/components/reviews/AddReviewModal';
+import { useReviewRequests } from '@/lib/reviewRequests';
+import { syncGoogle } from '@/lib/google';
 
 const platformFilters: { key: ReviewPlatformFilter; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -46,7 +50,24 @@ function getInitials(name: string): string {
 }
 
 export function ReviewsPage() {
-  const { reviews, loading } = useReviews();
+  const { reviews, loading, refetch: refetchReviews } = useReviews();
+  const { requests, loading: requestsLoading, error: requestsError, refetch: refetchRequests } = useReviewRequests();
+  const [tab, setTab] = useState<'reviews' | 'requests'>('reviews');
+  const [addReviewOpen, setAddReviewOpen] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+
+  const handleSyncGoogle = async () => {
+    setSyncing(true);
+    try {
+      const { imported } = await syncGoogle();
+      await refetchReviews();
+      showToast(imported ? `Imported ${imported} new Google review${imported === 1 ? '' : 's'}` : 'Google reviews are up to date');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Google sync failed');
+    } finally {
+      setSyncing(false);
+    }
+  };
   const { location } = useLocation();
   const [activeFilter, setActiveFilter] = useState<ReviewPlatformFilter>('all');
   const [search, setSearch] = useState('');
@@ -56,11 +77,6 @@ export function ReviewsPage() {
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [requestModalOpen, setRequestModalOpen] = useState(false);
-  const [requestSettings, setRequestSettings] = useState<ReviewRequestSettings>({
-    channel: 'sms',
-    negativeFeedbackShield: true,
-    messageTemplate: 'Hi {name}, thanks for choosing us! We\'d love to hear about your experience. Leave us a review: {link}',
-  });
   const [toast, setToast] = useState<string | null>(null);
 
   const filteredReviews = useMemo(() => {
@@ -145,11 +161,6 @@ export function ReviewsPage() {
     closeReplyModal();
   };
 
-  const handleSendRequest = () => {
-    showToast(`Review request sent via ${requestSettings.channel.toUpperCase()}`);
-    setRequestModalOpen(false);
-  };
-
   const reviewStats = {
     total: reviews.length,
     replied: reviews.filter((r) => r.is_replied).length,
@@ -166,12 +177,46 @@ export function ReviewsPage() {
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Review Inbox</h1>
           <p className="text-sm text-slate-500 mt-1">Manage reviews across all platforms in one place.</p>
         </div>
-        <button onClick={() => setRequestModalOpen(true)} className="btn-primary">
-          <Send className="w-4 h-4" />
-          Send Review Request
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {location?.gbp_place_id && (
+            <button onClick={handleSyncGoogle} disabled={syncing} className="btn-secondary" title="Import your latest Google reviews">
+              {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              Sync Google
+            </button>
+          )}
+          <button onClick={() => setAddReviewOpen(true)} className="btn-secondary">
+            <Plus className="w-4 h-4" />
+            Add Review
+          </button>
+          <button onClick={() => setRequestModalOpen(true)} className="btn-primary flex-1 sm:flex-none">
+            <Send className="w-4 h-4" />
+            Send Review Request
+          </button>
+        </div>
       </div>
 
+      {/* Tabs */}
+      <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 w-fit" role="tablist">
+        {([
+          ['reviews', 'Reviews'],
+          ['requests', `Requests${requests.length ? ` (${requests.length})` : ''}`],
+        ] as const).map(([key, label]) => (
+          <button
+            key={key}
+            role="tab"
+            aria-selected={tab === key}
+            onClick={() => setTab(key)}
+            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${tab === key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'requests' && <ReviewRequestsPanel requests={requests} loading={requestsLoading} error={requestsError} />}
+
+      {tab === 'reviews' && (
+      <>
       {/* Stats bar */}
       <div className="grid grid-cols-3 gap-3">
         <div className="card p-3 sm:p-4 text-center">
@@ -270,6 +315,16 @@ export function ReviewsPage() {
                         <Sparkles className="w-3.5 h-3.5" />
                         {review.is_replied ? 'View Reply' : 'AI Draft Reply'}
                       </button>
+                      {review.external_url && (
+                        <a
+                          href={review.external_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100 transition-colors"
+                        >
+                          View on {review.platform === 'google' ? 'Google' : 'site'} <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -277,6 +332,9 @@ export function ReviewsPage() {
             ))}
           </div>
         </>
+      )}
+
+      </>
       )}
 
       {/* AI Draft Reply Modal */}
@@ -379,109 +437,24 @@ export function ReviewsPage() {
         )}
       </Modal>
 
-      {/* Send Review Request Modal */}
-      <Modal
+      <ReviewRequestModal
         isOpen={requestModalOpen}
         onClose={() => setRequestModalOpen(false)}
-        title="Send Review Request"
-        subtitle="Ask a customer to leave a review"
-        maxWidth="md"
-      >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-semibold text-slate-900 mb-2">Channel</label>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => setRequestSettings({ ...requestSettings, channel: 'sms' })}
-                className={`flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all ${
-                  requestSettings.channel === 'sms'
-                    ? 'border-sky-400 bg-sky-50/50'
-                    : 'border-slate-200 hover:border-slate-300'
-                }`}
-              >
-                <div className={`flex items-center justify-center w-9 h-9 rounded-lg ${requestSettings.channel === 'sms' ? 'bg-sky-100 text-sky-600' : 'bg-slate-100 text-slate-400'}`}>
-                  <Smartphone className="w-5 h-5" />
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-semibold text-slate-900">SMS</p>
-                  <p className="text-xs text-slate-500">Text message</p>
-                </div>
-              </button>
-              <button
-                onClick={() => setRequestSettings({ ...requestSettings, channel: 'whatsapp' })}
-                className={`flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all ${
-                  requestSettings.channel === 'whatsapp'
-                    ? 'border-emerald-400 bg-emerald-50/50'
-                    : 'border-slate-200 hover:border-slate-300'
-                }`}
-              >
-                <div className={`flex items-center justify-center w-9 h-9 rounded-lg ${requestSettings.channel === 'whatsapp' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
-                  <Phone className="w-5 h-5" />
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-semibold text-slate-900">WhatsApp</p>
-                  <p className="text-xs text-slate-500">Chat message</p>
-                </div>
-              </button>
-            </div>
-          </div>
+        onSent={(message) => {
+          showToast(message);
+          refetchRequests();
+        }}
+      />
 
-          <div>
-            <label className="block text-sm font-semibold text-slate-900 mb-1.5">Customer Phone</label>
-            <input type="tel" placeholder="(512) 555-0000" className="input-field" />
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-slate-900 mb-1.5">Message</label>
-            <textarea
-              value={requestSettings.messageTemplate}
-              onChange={(e) => setRequestSettings({ ...requestSettings, messageTemplate: e.target.value })}
-              rows={3}
-              className="input-field resize-none text-sm"
-            />
-            <p className="text-xs text-slate-400 mt-1">Use {'{name}'} and {'{link}'} as placeholders.</p>
-          </div>
-
-          <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-start gap-2.5">
-                <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-amber-50 text-amber-600 shrink-0">
-                  <Shield className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">Negative Feedback Shield</p>
-                  <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
-                    Intercept dissatisfied customers with a private feedback form before they reach public review platforms.
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setRequestSettings({ ...requestSettings, negativeFeedbackShield: !requestSettings.negativeFeedbackShield })}
-                className={`relative shrink-0 w-11 h-6 rounded-full transition-colors ${
-                  requestSettings.negativeFeedbackShield ? 'bg-sky-500' : 'bg-slate-300'
-                }`}
-              >
-                <span
-                  className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${
-                    requestSettings.negativeFeedbackShield ? 'translate-x-5' : ''
-                  }`}
-                />
-              </button>
-            </div>
-            {requestSettings.negativeFeedbackShield && (
-              <div className="flex items-center gap-1.5 mt-2.5 text-xs text-emerald-600 font-medium animate-fade-in">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                Shield is active — low ratings will be intercepted privately
-              </div>
-            )}
-          </div>
-
-          <button onClick={handleSendRequest} className="btn-primary w-full">
-            <Send className="w-4 h-4" />
-            Send Request
-          </button>
-        </div>
-      </Modal>
+      <AddReviewModal
+        isOpen={addReviewOpen}
+        onClose={() => setAddReviewOpen(false)}
+        location={location}
+        onAdded={(message) => {
+          showToast(message);
+          refetchReviews();
+        }}
+      />
 
       {/* Toast */}
       {toast && (

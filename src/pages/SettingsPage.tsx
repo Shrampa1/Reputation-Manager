@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation as useRouterLocation, useNavigate } from 'react-router-dom';
 import {
   Building2,
   Check,
@@ -19,6 +19,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useLocationContext } from '@/context/LocationContext';
 import { supabase } from '@/lib/supabase';
 import { displayName, getInitials } from '@/lib/user';
+import { ReviewSettingsCard } from '@/components/reviews/ReviewSettingsCard';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD = 8;
@@ -62,6 +63,14 @@ export function SettingsPage() {
   const { user, signOut } = useAuth();
   const { organization, location, role, isAdmin, updateOrganizationName } = useLocationContext();
   const navigate = useNavigate();
+  const { hash } = useRouterLocation();
+
+  // Links like /settings#review-requests jump to that section
+  useEffect(() => {
+    if (!hash) return;
+    const el = document.getElementById(hash.slice(1));
+    el?.scrollIntoView({ block: 'start' });
+  }, [hash]);
 
   // ---- Profile
   const [fullName, setFullName] = useState('');
@@ -345,6 +354,8 @@ export function SettingsPage() {
           )}
         </div>
       </form>
+
+      <ReviewSettingsCard />
 
       {/* Session */}
       <div className="card p-5 flex flex-col sm:flex-row sm:items-center gap-3">

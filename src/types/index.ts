@@ -15,13 +15,32 @@ export interface Review {
   review_date: string;
   ai_reply_draft: string | null;
   is_replied: boolean;
+  /** Set for reviews synced from Google (the review's id there) */
+  external_id?: string | null;
+  external_url?: string | null;
   created_at: string;
 }
 
-export interface ReviewRequestSettings {
-  channel: 'sms' | 'whatsapp';
-  negativeFeedbackShield: boolean;
-  messageTemplate: string;
+// Review requests — written by the send-review-request / review-landing edge functions
+export type ReviewRequestStatus = 'sending' | 'sent' | 'failed';
+
+export interface ReviewRequest {
+  id: string;
+  location_id: string;
+  lead_id: string | null;
+  customer_name: string;
+  email: string;
+  channel: 'email' | 'sms';
+  status: ReviewRequestStatus;
+  error: string | null;
+  /** Ratings of 1-3 were asked for private feedback first */
+  shield: boolean;
+  rating: number | null;
+  feedback: string | null;
+  responded_at: string | null;
+  clicked_review_at: string | null;
+  sent_by: string | null;
+  created_at: string;
 }
 
 // Leads — DB enum: lead_stage (new_lead, quote_sent, job_booked, completed, review_requested)
@@ -130,6 +149,129 @@ export interface Location {
   phone: string | null;
   website: string | null;
   gbp_place_id: string | null;
+  /** Public "write a review" URL customers are sent to */
+  review_link: string | null;
+  /** Ask 1-3 star customers for private feedback before showing the review link */
+  review_shield_enabled: boolean;
+  // Google listing, as last synced from the Places API (gbp_place_id holds the Places ID)
+  google_rating?: number | null;
+  google_review_count?: number | null;
+  google_maps_url?: string | null;
+  google_listing?: GoogleListing | null;
+  google_synced_at?: string | null;
+  google_sync_error?: string | null;
+  created_at: string;
+}
+
+export interface GoogleListing {
+  name: string | null;
+  address: string | null;
+  phone: string | null;
+  international_phone: string | null;
+  website: string | null;
+  business_status: string | null;
+  reviews_url: string | null;
+}
+
+export interface PlaceCandidate {
+  id: string;
+  name: string;
+  address: string;
+  rating: number | null;
+  reviewCount: number;
+  mapsUrl: string | null;
+}
+
+// Website audits — written by the website-audit edge function
+export type AuditCheckStatus = 'pass' | 'warn' | 'fail' | 'info';
+export type AuditCheckCategory = 'indexing' | 'onpage' | 'links' | 'performance' | 'ecommerce' | 'security';
+
+export interface AuditCheck {
+  id: string;
+  category: AuditCheckCategory;
+  status: AuditCheckStatus;
+  title: string;
+  detail: string;
+  weight: number;
+}
+
+export interface PageSpeedResult {
+  strategy: 'mobile' | 'desktop';
+  scores: { performance: number | null; seo: number | null; accessibility: number | null; best_practices: number | null };
+  metrics: { id: string; title: string; value: string; score: number | null }[];
+  field: { overall: string | null; metrics: { id: string; label: string; percentile: number; category: string }[]; source: 'url' | 'origin' | null };
+  opportunities: { id: string; title: string; savings: string }[];
+  seo_issues: string[];
+}
+
+export interface ProductPageReport {
+  url: string;
+  status: number;
+  title: string | null;
+  hasProductSchema: boolean;
+  hasPrice: boolean;
+  hasAvailability: boolean;
+  hasRating: boolean;
+  hasImage: boolean;
+  hasIdentifier: boolean;
+  hasDescription: boolean;
+  imagesMissingAlt: number;
+  canonical: string | null;
+}
+
+export interface AuditResults {
+  checks: AuditCheck[];
+  page?: {
+    title: string;
+    description: string;
+    h1: string[];
+    wordCount: number;
+    htmlBytes: number;
+    responseMs: number;
+    lang: string | null;
+    canonical: string | null;
+    schemaTypes: string[];
+    ogImage: string | null;
+    redirects: string[];
+  };
+  robots?: { found: boolean; blocksAll: boolean; sitemaps: string[] };
+  sitemap?: { found: boolean; url: string | null; isIndex: boolean; urlCount: number };
+  links?: {
+    internal: number;
+    external: number;
+    nofollow: number;
+    emptyAnchors: number;
+    checked: number;
+    broken: { url: string; status: number; error?: string }[];
+    unverified: number;
+  };
+  pagespeed?: { mobile: PageSpeedResult | { error: string }; desktop: PageSpeedResult | { error: string } };
+  ecommerce?: { platform: string | null; detected: boolean; productPages: ProductPageReport[] } | null;
+}
+
+export interface AuditAction {
+  title: string;
+  category: string;
+  priority: 'high' | 'medium' | 'low';
+  impact: string;
+  how_to_fix: string;
+  platform_tip: string;
+}
+
+export interface WebsiteAudit {
+  id: string;
+  location_id: string;
+  url: string;
+  final_url: string | null;
+  status: 'complete' | 'failed';
+  error: string | null;
+  overall_score: number | null;
+  scores: Partial<Record<'seo_checks' | 'performance_mobile' | 'performance_desktop' | 'lighthouse_seo' | 'accessibility' | 'best_practices', number | null>>;
+  results: AuditResults;
+  recommendations: { summary: string; actions: AuditAction[]; generated_at: string } | null;
+  is_ecommerce: boolean;
+  platform: string | null;
+  created_by: string | null;
   created_at: string;
 }
 

@@ -1,21 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Facebook, Loader2, MessageCircle, Plus, Smartphone } from 'lucide-react';
+import { Check, Facebook, Loader2, Mail, MessageCircle, Phone, Plus, Smartphone, Star, Trash2 } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { supabase } from '@/lib/supabase';
-import type { LeadChannel, LeadStage, Location } from '@/types';
+import { STAGES, formatValue } from '@/lib/leads';
+import type { Lead, LeadChannel, LeadStage, Location } from '@/types';
 
 const CHANNELS: { key: LeadChannel; label: string; icon: typeof MessageCircle }[] = [
   { key: 'web_chat', label: 'Web Chat', icon: MessageCircle },
   { key: 'sms', label: 'SMS / Phone', icon: Smartphone },
   { key: 'messenger', label: 'Messenger', icon: Facebook },
-];
-
-const STAGES: { key: LeadStage; label: string }[] = [
-  { key: 'new_lead', label: 'New Lead' },
-  { key: 'quote_sent', label: 'Quote Sent' },
-  { key: 'job_booked', label: 'Job Booked' },
-  { key: 'completed', label: 'Completed' },
-  { key: 'review_requested', label: 'Review Requested' },
 ];
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -40,34 +33,57 @@ const EMPTY: FormState = {
   notes: '',
 };
 
-/** "450", "$1200", "1,200.50" → "$1,200" (the pipeline sums digits from this text field) */
-function formatValue(raw: string): string {
-  const num = Math.round(Number(raw.replace(/[^0-9.]/g, '')));
-  return raw.trim() && Number.isFinite(num) && num > 0 ? `$${num.toLocaleString('en-US')}` : '';
-}
-
+/**
+ * Adds a lead, or (with `lead`) shows and edits an existing one: contact shortcuts,
+ * review request, save and delete.
+ */
 export function NewLeadModal({
   isOpen,
   onClose,
   location,
-  onCreated,
+  lead = null,
+  onDone,
+  onRequestReview,
 }: {
   isOpen: boolean;
   onClose: () => void;
   location: Location | null;
-  onCreated: (name: string) => void;
+  /** Edit this lead instead of creating a new one */
+  lead?: Lead | null;
+  /** Called after a successful create, save or delete, with a message for a toast */
+  onDone: (message: string) => void;
+  /** Edit mode: open the review request form for this lead */
+  onRequestReview?: (lead: Lead) => void;
 }) {
+  const isEdit = Boolean(lead);
   const [form, setForm] = useState<FormState>(EMPTY);
   const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
-      setForm(EMPTY);
+      setForm(
+        lead
+          ? {
+              customer_name: lead.customer_name,
+              phone: lead.phone ?? '',
+              email: lead.email ?? '',
+              channel: lead.channel,
+              stage: lead.stage,
+              estimated_value: lead.estimated_value ?? '',
+              notes: lead.notes ?? '',
+            }
+          : EMPTY
+      );
       setError(null);
       setSaving(false);
+      setDeleting(false);
+      setConfirmDelete(false);
     }
-  }, [isOpen]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only reset on open / when switching leads
+  }, [isOpen, lead?.id]);
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) => setForm((f) => ({ ...f, [key]: value }));
 
@@ -93,8 +109,7 @@ export function NewLeadModal({
 
     setSaving(true);
     setError(null);
-    const { error: insertError } = await supabase.from('leads').insert({
-      location_id: location.id,
+    const fields = {
       customer_name: form.customer_name.trim(),
       phone: form.phone.trim() || null,
       email: form.email.trim() || null,
@@ -102,20 +117,75 @@ export function NewLeadModal({
       stage: form.stage,
       estimated_value: formatValue(form.estimated_value),
       notes: form.notes.trim(),
-    });
+    };
+    const { error: saveError } = lead
+      ? await supabase.from('leads').update(fields).eq('id', lead.id)
+      : await supabase.from('leads').insert({ ...fields, location_id: location.id });
     setSaving(false);
 
-    if (insertError) {
-      setError(`Couldn't save the lead: ${insertError.message}`);
+    if (saveError) {
+      setError(`Couldn't save the lead: ${saveError.message}`);
       return;
     }
-    onCreated(form.customer_name.trim());
+    onDone(lead ? `Saved ${fields.customer_name}` : `${fields.customer_name} added to your pipeline`);
     onClose();
   };
 
+  const handleDelete = async () => {
+    if (!lead) return;
+    setDeleting(true);
+    setError(null);
+    const { error: deleteError } = await supabase.from('leads').delete().eq('id', lead.id);
+    setDeleting(false);
+    if (deleteError) {
+      setError(`Couldn't delete the lead: ${deleteError.message}`);
+      return;
+    }
+    onDone(`Deleted ${lead.customer_name}`);
+    onClose();
+  };
+
+  const busy = saving || deleting;
+  const savedEmail = lead?.email ?? '';
+  const savedPhone = lead?.phone ?? '';
+
   return (
-    <Modal isOpen={isOpen} onClose={() => !saving && onClose()} title="New lead" subtitle="Add a customer to your pipeline" maxWidth="md">
+    <Modal
+      isOpen={isOpen}
+      onClose={() => !busy && onClose()}
+      title={lead ? lead.customer_name : 'New lead'}
+      subtitle={lead ? `Added ${new Date(lead.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : 'Add a customer to your pipeline'}
+      maxWidth="md"
+    >
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+        {isEdit && (
+          <div className="grid grid-cols-3 gap-2">
+            <a
+              href={savedPhone ? `tel:${savedPhone.replace(/[^\d+]/g, '')}` : undefined}
+              aria-disabled={!savedPhone}
+              className={`btn-secondary !px-2 text-xs ${savedPhone ? '' : 'pointer-events-none opacity-40'}`}
+            >
+              <Phone className="w-4 h-4" /> Call
+            </a>
+            <a
+              href={savedEmail ? `mailto:${savedEmail}` : undefined}
+              aria-disabled={!savedEmail}
+              className={`btn-secondary !px-2 text-xs ${savedEmail ? '' : 'pointer-events-none opacity-40'}`}
+            >
+              <Mail className="w-4 h-4" /> Email
+            </a>
+            <button
+              type="button"
+              disabled={!savedEmail || !onRequestReview}
+              title={savedEmail ? 'Email this customer a review request' : 'Add an email address first'}
+              onClick={() => lead && onRequestReview?.(lead)}
+              className="btn-secondary !px-2 text-xs"
+            >
+              <Star className="w-4 h-4" /> Ask for review
+            </button>
+          </div>
+        )}
+
         <div>
           <label htmlFor="lead-name" className="block text-sm font-medium text-slate-700 mb-1.5">
             Customer name <span className="text-rose-500">*</span>
@@ -126,7 +196,7 @@ export function NewLeadModal({
             onChange={(e) => set('customer_name', e.target.value)}
             placeholder="Jane Smith"
             autoComplete="off"
-            autoFocus
+            autoFocus={!isEdit}
             className="input-field"
           />
         </div>
@@ -221,15 +291,36 @@ export function NewLeadModal({
 
         {error && <p className="text-sm text-rose-600" role="alert">{error}</p>}
 
-        <div className="flex items-center gap-2 pt-1">
-          <button type="submit" disabled={saving} className="btn-primary flex-1">
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-            {saving ? 'Saving…' : 'Add lead'}
-          </button>
-          <button type="button" onClick={onClose} disabled={saving} className="btn-secondary">
-            Cancel
-          </button>
-        </div>
+        {confirmDelete ? (
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 p-3 rounded-xl bg-rose-50 border border-rose-100">
+            <p className="text-sm text-rose-700 flex-1">Delete {lead?.customer_name}? This can’t be undone.</p>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={handleDelete} disabled={busy} className="btn-primary !bg-rose-600 hover:!bg-rose-700">
+                {deleting && <Loader2 className="w-4 h-4 animate-spin" />}
+                Delete
+              </button>
+              <button type="button" onClick={() => setConfirmDelete(false)} disabled={busy} className="btn-secondary">
+                Keep
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 pt-1">
+            <button type="submit" disabled={busy} className="btn-primary flex-1">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : isEdit ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+              {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Add lead'}
+            </button>
+            {isEdit ? (
+              <button type="button" onClick={() => setConfirmDelete(true)} disabled={busy} className="btn-secondary text-rose-600 hover:bg-rose-50" aria-label="Delete lead">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            ) : (
+              <button type="button" onClick={onClose} disabled={busy} className="btn-secondary">
+                Cancel
+              </button>
+            )}
+          </div>
+        )}
       </form>
     </Modal>
   );

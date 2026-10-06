@@ -10,8 +10,6 @@ import {
   Clock,
   Check,
   FileText,
-  Send,
-  Quote,
   Loader2,
   AlertTriangle,
   ExternalLink,
@@ -19,9 +17,9 @@ import {
 import { useIntegrations, useLocation, useReviews, useSocialPosts } from '@/hooks/useSupabaseData';
 import type { PostPlatform, PostStatus, Review, SocialPost } from '@/types';
 import { StarRating } from '@/components/ui/StarRating';
-import { Modal } from '@/components/ui/Modal';
 import { NewPostModal } from '@/components/social/NewPostModal';
 import { ContentPlanner } from '@/components/social/ContentPlanner';
+import { ReviewGraphicModal } from '@/components/social/ReviewGraphicModal';
 
 const platformIconMap: Record<string, typeof Facebook> = {
   facebook: Facebook,
@@ -77,13 +75,13 @@ export function SocialPage() {
   const [composerContent, setComposerContent] = useState('');
   const [composerPlatforms, setComposerPlatforms] = useState<PostPlatform[] | undefined>(undefined);
   const [composerScheduleAt, setComposerScheduleAt] = useState<Date | null>(null);
+  const [composerImage, setComposerImage] = useState<File | null>(null);
   const [view, setView] = useState<'calendar' | 'list'>('calendar');
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
   const calendarDays = useMemo(() => buildMonthGrid(month), [month]);
   const todayKey = localDateKey(new Date());
   const isCurrentMonth = month.getTime() === startOfMonth(new Date()).getTime();
   const shiftMonth = (delta: number) => setMonth((m) => new Date(m.getFullYear(), m.getMonth() + delta, 1));
-  const [graphicModalOpen, setGraphicModalOpen] = useState(false);
   const [selectedReview, setSelectedReview] = useState<Review | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -92,11 +90,12 @@ export function SocialPage() {
     setTimeout(() => setToast(null), 2500);
   };
 
-  const openComposer = (content = '', platforms?: PostPlatform[], scheduleAt: Date | null = null) => {
+  const openComposer = (content = '', platforms?: PostPlatform[], scheduleAt: Date | null = null, image: File | null = null) => {
     setEditingPost(null);
     setComposerContent(content);
     setComposerPlatforms(platforms);
     setComposerScheduleAt(scheduleAt);
+    setComposerImage(image);
     setComposerOpen(true);
   };
 
@@ -106,10 +105,7 @@ export function SocialPage() {
     setComposerOpen(true);
   };
 
-  const openGraphicModal = (review: Review) => {
-    setSelectedReview(review);
-    setGraphicModalOpen(true);
-  };
+  const openGraphicModal = (review: Review) => setSelectedReview(review);
 
   const fiveStarReviews = reviews.filter((r) => r.rating === 5);
   const isLoading = reviewsLoading || postsLoading;
@@ -375,79 +371,15 @@ export function SocialPage() {
         </>
       )}
 
-      {/* Review-to-Graphic Modal */}
-      <Modal
-        isOpen={graphicModalOpen}
-        onClose={() => setGraphicModalOpen(false)}
-        title="Review-to-Graphic"
-        subtitle="Social media image preview"
-        maxWidth="md"
-      >
-        {selectedReview && (
-          <div className="space-y-4">
-            <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-sky-500 via-sky-600 to-blue-700 aspect-square max-w-sm mx-auto shadow-xl">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-12 translate-x-12" />
-              <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full translate-y-8 -translate-x-8" />
-
-              <div className="relative h-full flex flex-col items-center justify-center p-8 text-white text-center">
-                <Quote className="w-8 h-8 text-white/40 mb-3" />
-                <div className="flex items-center gap-1 mb-3">
-                  {[1, 2, 3, 4, 5].map((s) => (
-                    <Star key={s} className="w-4 h-4 fill-amber-300 text-amber-300" />
-                  ))}
-                </div>
-                <p className="text-sm leading-relaxed font-medium mb-4 line-clamp-4">
-                  "{selectedReview.content}"
-                </p>
-                <div className="mt-auto">
-                  <p className="text-xs font-semibold text-white/90">— {selectedReview.author_name}</p>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <p className="text-sm font-semibold text-slate-900 mb-2">Template Style</p>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { name: 'Ocean', active: true, bg: 'from-sky-500 to-blue-700' },
-                  { name: 'Sunset', active: false, bg: 'from-orange-400 to-rose-600' },
-                  { name: 'Forest', active: false, bg: 'from-emerald-500 to-teal-700' },
-                ].map((tmpl) => (
-                  <button
-                    key={tmpl.name}
-                    className={`p-2 rounded-xl border-2 transition-all ${
-                      tmpl.active ? 'border-sky-400 bg-sky-50' : 'border-slate-200 hover:border-slate-300'
-                    }`}
-                  >
-                    <div className={`w-full aspect-square rounded-lg bg-gradient-to-br ${tmpl.bg} mb-1`} />
-                    <p className="text-xs font-medium text-slate-700">{tmpl.name}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  setGraphicModalOpen(false);
-                  openComposer(`"${selectedReview.content}" — ${selectedReview.author_name} ⭐⭐⭐⭐⭐`);
-                }}
-                className="btn-primary flex-1"
-              >
-                <Send className="w-4 h-4" />
-                Use in a Post
-              </button>
-              <button
-                onClick={() => showToast('Image downloaded')}
-                className="btn-secondary"
-              >
-                <ImageIcon className="w-4 h-4" />
-                Download
-              </button>
-            </div>
-          </div>
-        )}
-      </Modal>
+      <ReviewGraphicModal
+        review={selectedReview}
+        businessName={location?.name ?? ''}
+        onClose={() => setSelectedReview(null)}
+        onUseInPost={(image, caption) => {
+          setSelectedReview(null);
+          openComposer(caption, undefined, null, image);
+        }}
+      />
 
       <NewPostModal
         isOpen={composerOpen}
@@ -458,6 +390,7 @@ export function SocialPage() {
         initialContent={composerContent}
         initialPlatforms={composerPlatforms}
         initialScheduleAt={composerScheduleAt}
+        initialImage={composerImage}
         onSaved={(message) => {
           showToast(message);
           refetchPosts();

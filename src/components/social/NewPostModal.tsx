@@ -65,6 +65,8 @@ export interface NewPostModalProps {
   initialPlatforms?: PostPlatform[];
   /** Preselect a schedule time for a new post; ignored if it's already in the past */
   initialScheduleAt?: Date | null;
+  /** Preattach an image to a new post (e.g. a review graphic) */
+  initialImage?: File | null;
   onSaved: (message: string) => void;
 }
 
@@ -77,6 +79,7 @@ export function NewPostModal({
   initialContent,
   initialPlatforms,
   initialScheduleAt,
+  initialImage,
   onSaved,
 }: NewPostModalProps) {
   const isEdit = Boolean(post);
@@ -120,7 +123,8 @@ export function NewPostModal({
       setPlatforms(initialPlatforms?.length ? initialPlatforms : connected.length > 0 ? connected : ['facebook']);
       setContent(initialContent ?? '');
       setExistingMediaUrl(null);
-      setImagePreview(null);
+      setImageFile(initialImage ?? null);
+      setImagePreview(initialImage ? URL.createObjectURL(initialImage) : null);
       if (initialScheduleAt && initialScheduleAt.getTime() > Date.now() + MIN_SCHEDULE_LEAD_MS) {
         setMode('schedule');
         setScheduleAt(toLocalInput(initialScheduleAt));

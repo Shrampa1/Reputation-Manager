@@ -12,38 +12,44 @@ import { SettingsPage } from '@/pages/SettingsPage';
 import { TeamPage } from '@/pages/TeamPage';
 import { ActivityPage } from '@/pages/ActivityPage';
 import { AdminRoute } from '@/components/AdminRoute';
+import { BusinessGate } from '@/components/BusinessGate';
 import { LoginPage } from '@/pages/LoginPage';
 import { SignupPage } from '@/pages/SignupPage';
+import { ReviewLandingPage } from '@/pages/ReviewLandingPage';
 
 function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
+      {/* Public: customers open this from a review-request email */}
+      <Route path="/r/:token" element={<ReviewLandingPage />} />
       <Route
         path="/*"
         element={
           <ProtectedRoute>
-            <div className="flex min-h-screen bg-slate-50">
-              <Sidebar />
-              <div className="flex-1 min-w-0 flex flex-col">
-                <MobileHeader />
-                <main className="flex-1 px-4 sm:px-6 lg:px-8 py-5 pb-24 lg:pb-8 max-w-7xl mx-auto w-full">
-                  <Routes>
-                    <Route path="/" element={<DashboardPage />} />
-                    <Route path="/reviews" element={<ReviewsPage />} />
-                    <Route path="/seo" element={<SeoPage />} />
-                    <Route path="/social" element={<SocialPage />} />
-                    <Route path="/leads" element={<LeadsPage />} />
-                    <Route path="/integrations" element={<AdminRoute><IntegrationsPage /></AdminRoute>} />
-                    <Route path="/activity" element={<AdminRoute><ActivityPage /></AdminRoute>} />
-                    <Route path="/settings" element={<SettingsPage />} />
-                    <Route path="/team" element={<TeamPage />} />
-                  </Routes>
-                </main>
+            <BusinessGate>
+              <div className="flex min-h-screen bg-slate-50">
+                <Sidebar />
+                <div className="flex-1 min-w-0 flex flex-col">
+                  <MobileHeader />
+                  <main className="flex-1 px-4 sm:px-6 lg:px-8 py-5 pb-24 lg:pb-8 max-w-7xl mx-auto w-full">
+                    <Routes>
+                      <Route path="/" element={<DashboardPage />} />
+                      <Route path="/reviews" element={<ReviewsPage />} />
+                      <Route path="/seo" element={<SeoPage />} />
+                      <Route path="/social" element={<SocialPage />} />
+                      <Route path="/leads" element={<LeadsPage />} />
+                      <Route path="/integrations" element={<AdminRoute><IntegrationsPage /></AdminRoute>} />
+                      <Route path="/activity" element={<AdminRoute><ActivityPage /></AdminRoute>} />
+                      <Route path="/settings" element={<SettingsPage />} />
+                      <Route path="/team" element={<TeamPage />} />
+                    </Routes>
+                  </main>
+                </div>
+                <BottomNav />
               </div>
-              <BottomNav />
-            </div>
+            </BusinessGate>
           </ProtectedRoute>
         }
       />
