@@ -82,7 +82,7 @@ export interface SocialPost {
 }
 
 // Integrations — DB enums: integration_provider, integration_status
-export type IntegrationProvider = 'google_business' | 'facebook' | 'instagram' | 'twilio';
+export type IntegrationProvider = 'google_business' | 'facebook' | 'instagram' | 'twilio' | 'search_console';
 export type IntegrationStatus = 'connected' | 'error' | 'disconnected';
 
 export interface Integration {
@@ -256,6 +256,59 @@ export interface AuditAction {
   impact: string;
   how_to_fix: string;
   platform_tip: string;
+}
+
+// Google Search Console (search-console edge function)
+export interface GscMetrics {
+  clicks: number;
+  impressions: number;
+  ctr: number;
+  position: number;
+}
+
+export interface GscOverview {
+  range: { startDate: string; endDate: string };
+  previous: { startDate: string; endDate: string };
+  totals: GscMetrics;
+  previousTotals: GscMetrics;
+  series: (GscMetrics & { date: string })[];
+  queries: (GscMetrics & { query: string })[];
+  pages: (GscMetrics & { page: string; prevClicks: number })[];
+  losingPages: { page: string; prevClicks: number; clicks: number }[];
+  devices: { device: string; clicks: number; impressions: number }[];
+  sitemaps: {
+    path: string;
+    lastSubmitted: string | null;
+    lastDownloaded: string | null;
+    isPending: boolean;
+    isIndex: boolean;
+    warnings: number;
+    errors: number;
+    submitted: number;
+  }[];
+}
+
+export interface GscInspection {
+  url: string;
+  verdict: string;
+  coverageState: string;
+  indexingState: string | null;
+  robotsTxtState: string | null;
+  pageFetchState: string | null;
+  lastCrawlTime: string | null;
+  googleCanonical: string | null;
+  userCanonical: string | null;
+  link: string | null;
+  richResults: { type: string; issues: number }[];
+}
+
+export interface GscCoverage {
+  sampled: number;
+  indexed: number;
+  notIndexed: number;
+  reasons: { reason: string; count: number }[];
+  results: GscInspection[];
+  partial: boolean;
 }
 
 export interface WebsiteAudit {

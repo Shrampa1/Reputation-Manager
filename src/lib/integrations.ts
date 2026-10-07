@@ -1,4 +1,4 @@
-import { Facebook, Instagram, MessageSquare, MapPin, type LucideIcon } from 'lucide-react';
+import { Facebook, Instagram, MessageSquare, MapPin, Search, type LucideIcon } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { callFunction } from '@/lib/functions';
 import type { IntegrationProvider, PostPlatform } from '@/types';
@@ -47,6 +47,17 @@ export const PROVIDERS: ProviderInfo[] = [
     connectMethod: 'oauth',
     connectLabel: 'Connect with Facebook',
     setupNote: 'Needs an Instagram Business or Creator account linked to your Facebook Page.',
+  },
+  {
+    provider: 'search_console',
+    name: 'Google Search Console',
+    description: 'See which pages Google has indexed, the searches you appear for, clicks and rankings.',
+    usedFor: ['SEO & Website'],
+    icon: Search,
+    iconClass: 'bg-sky-50 text-sky-600',
+    connectMethod: 'oauth',
+    connectLabel: 'Connect with Google',
+    setupNote: 'Your site must be verified in Search Console under the Google account you connect.',
   },
   {
     provider: 'twilio',

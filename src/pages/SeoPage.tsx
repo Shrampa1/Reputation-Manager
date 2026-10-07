@@ -1,15 +1,19 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Check, Gauge, Info, MapPin, Map as MapIcon } from 'lucide-react';
+import { AlertTriangle, Check, Gauge, Info, MapPin, Map as MapIcon, Search, Swords } from 'lucide-react';
 import { geoGridData } from '@/data/mockData';
 import { WebsiteHealth } from '@/components/seo/WebsiteHealth';
 import { GoogleListing } from '@/components/seo/GoogleListing';
+import { SearchConsole } from '@/components/seo/SearchConsole';
+import { Competitors } from '@/components/seo/Competitors';
 
-type Tab = 'website' | 'google' | 'rank';
+type Tab = 'website' | 'search' | 'google' | 'competitors' | 'rank';
 
 const TABS: { key: Tab; label: string; icon: typeof Gauge }[] = [
   { key: 'website', label: 'Website Health', icon: Gauge },
+  { key: 'search', label: 'Search Console', icon: Search },
   { key: 'google', label: 'Google Listing', icon: MapPin },
+  { key: 'competitors', label: 'Competitors', icon: Swords },
   { key: 'rank', label: 'Rank Map', icon: MapIcon },
 ];
 
@@ -61,6 +65,19 @@ export function SeoPage() {
   const [params, setParams] = useSearchParams();
   const tab = (TABS.some((t) => t.key === params.get('tab')) ? params.get('tab') : 'website') as Tab;
   const [toast, setToast] = useState<string | null>(null);
+  const [banner, setBanner] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
+
+  // Back from Google sign-in: /seo?tab=search&integration=search_console&status=connected|error&message=…
+  useEffect(() => {
+    if (params.get('integration') !== 'search_console') return;
+    const status = params.get('status');
+    setBanner(
+      status === 'connected'
+        ? { kind: 'success', text: 'Google Search Console connected.' }
+        : { kind: 'error', text: `Couldn't connect Search Console: ${params.get('message') || 'unknown error'}` }
+    );
+    setParams({ tab: 'search' }, { replace: true });
+  }, [params, setParams]);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -91,8 +108,21 @@ export function SeoPage() {
         ))}
       </div>
 
+      {banner && (
+        <div
+          role={banner.kind === 'error' ? 'alert' : 'status'}
+          className={`flex items-start gap-2 p-3 rounded-xl text-sm ${banner.kind === 'error' ? 'bg-rose-50 text-rose-700' : 'bg-emerald-50 text-emerald-700'}`}
+        >
+          {banner.kind === 'error' ? <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" /> : <Check className="w-4 h-4 shrink-0 mt-0.5" />}
+          <span className="flex-1">{banner.text}</span>
+          <button onClick={() => setBanner(null)} className="text-xs underline">Dismiss</button>
+        </div>
+      )}
+
       {tab === 'website' && <WebsiteHealth />}
+      {tab === 'search' && <SearchConsole />}
       {tab === 'google' && <GoogleListing onToast={showToast} />}
+      {tab === 'competitors' && <Competitors />}
       {tab === 'rank' && <RankMap />}
 
       {toast && (

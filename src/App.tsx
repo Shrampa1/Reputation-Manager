@@ -16,6 +16,31 @@ import { BusinessGate } from '@/components/BusinessGate';
 import { LoginPage } from '@/pages/LoginPage';
 import { SignupPage } from '@/pages/SignupPage';
 import { ReviewLandingPage } from '@/pages/ReviewLandingPage';
+import { ReportPage } from '@/pages/ReportPage';
+import { BillingPage } from '@/pages/BillingPage';
+import { PlatformAdminPage } from '@/pages/PlatformAdminPage';
+import { LegalPage } from '@/pages/LegalPage';
+import { useLocationContext } from '@/context/LocationContext';
+
+/** Page routes, remounted when the user switches business so no page shows the old one's data. */
+function AppRoutes() {
+  const { organization } = useLocationContext();
+  return (
+    <Routes key={organization?.id ?? 'none'}>
+      <Route path="/" element={<DashboardPage />} />
+      <Route path="/reviews" element={<ReviewsPage />} />
+      <Route path="/seo" element={<SeoPage />} />
+      <Route path="/social" element={<SocialPage />} />
+      <Route path="/leads" element={<LeadsPage />} />
+      <Route path="/integrations" element={<AdminRoute><IntegrationsPage /></AdminRoute>} />
+      <Route path="/activity" element={<AdminRoute><ActivityPage /></AdminRoute>} />
+      <Route path="/settings" element={<SettingsPage />} />
+      <Route path="/team" element={<TeamPage />} />
+      <Route path="/billing" element={<BillingPage />} />
+      <Route path="/admin" element={<PlatformAdminPage />} />
+    </Routes>
+  );
+}
 
 function App() {
   return (
@@ -24,6 +49,21 @@ function App() {
       <Route path="/signup" element={<SignupPage />} />
       {/* Public: customers open this from a review-request email */}
       <Route path="/r/:token" element={<ReviewLandingPage />} />
+      {/* Public legal pages (linked from the landing page footer) */}
+      <Route path="/terms" element={<LegalPage page="terms" />} />
+      <Route path="/privacy" element={<LegalPage page="privacy" />} />
+      <Route path="/refunds" element={<LegalPage page="refunds" />} />
+      {/* Print-ready report, without the app's sidebar */}
+      <Route
+        path="/report"
+        element={
+          <ProtectedRoute>
+            <BusinessGate>
+              <ReportPage />
+            </BusinessGate>
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/*"
         element={
@@ -34,17 +74,7 @@ function App() {
                 <div className="flex-1 min-w-0 flex flex-col">
                   <MobileHeader />
                   <main className="flex-1 px-4 sm:px-6 lg:px-8 py-5 pb-24 lg:pb-8 max-w-7xl mx-auto w-full">
-                    <Routes>
-                      <Route path="/" element={<DashboardPage />} />
-                      <Route path="/reviews" element={<ReviewsPage />} />
-                      <Route path="/seo" element={<SeoPage />} />
-                      <Route path="/social" element={<SocialPage />} />
-                      <Route path="/leads" element={<LeadsPage />} />
-                      <Route path="/integrations" element={<AdminRoute><IntegrationsPage /></AdminRoute>} />
-                      <Route path="/activity" element={<AdminRoute><ActivityPage /></AdminRoute>} />
-                      <Route path="/settings" element={<SettingsPage />} />
-                      <Route path="/team" element={<TeamPage />} />
-                    </Routes>
+                    <AppRoutes />
                   </main>
                 </div>
                 <BottomNav />

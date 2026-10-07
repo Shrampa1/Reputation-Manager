@@ -1,5 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Star, MapPin, CalendarDays, Inbox, Sparkles, LogOut, Plug } from 'lucide-react';
+import { LayoutDashboard, Star, MapPin, CalendarDays, Inbox, LogOut, Plug } from 'lucide-react';
+import { Logo } from '@/components/Logo';
 import { useAuth } from '@/context/AuthContext';
 import { getInitials } from '@/lib/user';
 import { useLocationContext } from '@/context/LocationContext';
@@ -54,14 +55,7 @@ export function MobileHeader() {
 
   return (
     <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between px-4 h-14 bg-white/90 backdrop-blur-lg border-b border-slate-200/80">
-      <div className="flex items-center gap-2">
-        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-sky-400 to-sky-600 text-white">
-          <Sparkles className="w-4 h-4" />
-        </div>
-        <div>
-          <p className="text-sm font-bold text-slate-900 leading-none">Reputation Engine</p>
-        </div>
-      </div>
+      <Logo className="text-sm" markClassName="w-8 h-8" />
       <div className="flex items-center gap-2">
         {isAdmin && (
         <NavLink

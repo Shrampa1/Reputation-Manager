@@ -18,6 +18,7 @@ import {
   AlertTriangle,
   PlugZap,
   X,
+  FileDown,
 } from 'lucide-react';
 import { useReviews, useLeads, useSmartTasks, useSocialPosts, useIntegrations } from '@/hooks/useSupabaseData';
 import { useLocationContext } from '@/context/LocationContext';
@@ -223,7 +224,13 @@ export function DashboardPage() {
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Welcome back</h1>
           <p className="text-sm text-slate-500 mt-1">Here's what's happening with your business today.</p>
         </div>
-        {healthPill && (isAdmin ? <Link to="/integrations" className="hover:opacity-90 transition-opacity">{healthPill}</Link> : healthPill)}
+        <div className="flex flex-wrap items-center gap-2">
+          {healthPill && (isAdmin ? <Link to="/integrations" className="hover:opacity-90 transition-opacity">{healthPill}</Link> : healthPill)}
+          <Link to="/report" className="btn-secondary">
+            <FileDown className="w-4 h-4" />
+            Download report
+          </Link>
+        </div>
       </div>
 
       {isLoading && (

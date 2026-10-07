@@ -20,6 +20,9 @@ import { useLocationContext } from '@/context/LocationContext';
 import { supabase } from '@/lib/supabase';
 import { displayName, getInitials } from '@/lib/user';
 import { ReviewSettingsCard } from '@/components/reviews/ReviewSettingsCard';
+import { AlertsSettingsCard } from '@/components/AlertsSettingsCard';
+import { BrandingSettingsCard } from '@/components/BrandingSettingsCard';
+import { BusinessesCard } from '@/components/BusinessesCard';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD = 8;
@@ -355,7 +358,13 @@ export function SettingsPage() {
         </div>
       </form>
 
+      <BusinessesCard />
+
       <ReviewSettingsCard />
+
+      <AlertsSettingsCard />
+
+      <BrandingSettingsCard />
 
       {/* Session */}
       <div className="card p-5 flex flex-col sm:flex-row sm:items-center gap-3">

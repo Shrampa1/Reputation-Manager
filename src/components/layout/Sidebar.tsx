@@ -1,5 +1,7 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Star, MapPin, CalendarDays, Inbox, Sparkles, LogOut, Plug, UserCog, Users, History } from 'lucide-react';
+import { LayoutDashboard, Star, MapPin, CalendarDays, Inbox, LogOut, Plug, UserCog, Users, History, CreditCard, ShieldCheck } from 'lucide-react';
+import { Logo } from '@/components/Logo';
+import { BusinessSwitcher } from '@/components/BusinessSwitcher';
 import { useAuth } from '@/context/AuthContext';
 import { useLocationContext } from '@/context/LocationContext';
 import { displayName, getInitials } from '@/lib/user';
@@ -16,12 +18,13 @@ const settingsItems = [
   { label: 'Integrations', path: '/integrations', icon: Plug, adminOnly: true },
   { label: 'Team', path: '/team', icon: Users, adminOnly: false },
   { label: 'Activity', path: '/activity', icon: History, adminOnly: true },
+  { label: 'Plan & billing', path: '/billing', icon: CreditCard, adminOnly: true },
   { label: 'Profile & Settings', path: '/settings', icon: UserCog, adminOnly: false },
 ];
 
 export function Sidebar() {
   const { user, signOut } = useAuth();
-  const { organization, isAdmin } = useLocationContext();
+  const { organization, isAdmin, isPlatformAdmin } = useLocationContext();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -31,17 +34,13 @@ export function Sidebar() {
 
   return (
     <aside className="hidden lg:flex flex-col w-64 shrink-0 h-screen sticky top-0 border-r border-slate-200/80 bg-white">
-      <div className="flex items-center gap-2.5 px-5 h-16 border-b border-slate-200/80">
-        <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-sky-400 to-sky-600 text-white">
-          <Sparkles className="w-5 h-5" />
-        </div>
-        <div>
-          <p className="text-sm font-bold text-slate-900 leading-tight">Reputation</p>
-          <p className="text-xs text-slate-400 leading-tight">Engine</p>
-        </div>
-      </div>
+      <Link to="/" className="flex items-center px-5 h-16 border-b border-slate-200/80 text-sm">
+        <Logo />
+      </Link>
 
-      <nav className="flex-1 px-3 py-4 space-y-1">
+      <BusinessSwitcher />
+
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         <p className="px-3 pb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">Menu</p>
         {navItems.map((item) => (
           <NavLink
@@ -70,6 +69,12 @@ export function Sidebar() {
             <span>{item.label}</span>
           </NavLink>
         ))}
+        {isPlatformAdmin && (
+          <NavLink to="/admin" className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : 'nav-link-inactive'}`}>
+            <ShieldCheck className="w-[18px] h-[18px] shrink-0" />
+            <span>Platform admin</span>
+          </NavLink>
+        )}
       </nav>
 
       <div className="p-3 border-t border-slate-200/80">

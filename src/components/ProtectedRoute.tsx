@@ -1,8 +1,10 @@
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { LandingPage } from '@/pages/LandingPage';
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
+  const { pathname } = useLocation();
 
   if (loading) {
     return (
@@ -16,7 +18,8 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    // Visitors see the marketing page at the root; every other app URL asks them to sign in
+    return pathname === '/' ? <LandingPage /> : <Navigate to="/login" replace />;
   }
 
   return <>{children}</>;
