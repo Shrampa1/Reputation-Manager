@@ -12,6 +12,8 @@ import {
   Inbox as InboxIcon,
   Loader2,
   AlertCircle,
+  QrCode as QrCodeIcon,
+  Users,
 } from 'lucide-react';
 import { useReviews } from '@/hooks/useSupabaseData';
 import { useLocationContext } from '@/context/LocationContext';
@@ -24,6 +26,8 @@ import { Modal } from '@/components/ui/Modal';
 import { ReviewRequestModal } from '@/components/reviews/ReviewRequestModal';
 import { ReviewRequestsPanel } from '@/components/reviews/ReviewRequestsPanel';
 import { AddReviewModal } from '@/components/reviews/AddReviewModal';
+import { BulkRequestModal } from '@/components/reviews/BulkRequestModal';
+import { QrCodeModal } from '@/components/reviews/QrCodeModal';
 import { useReviewRequests } from '@/lib/reviewRequests';
 import { syncGoogle } from '@/lib/google';
 
@@ -79,6 +83,8 @@ export function ReviewsPage() {
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [requestModalOpen, setRequestModalOpen] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
   const filteredReviews = useMemo(() => {
@@ -189,6 +195,14 @@ export function ReviewsPage() {
           {can('reviews.add') && <button onClick={() => setAddReviewOpen(true)} className="btn-secondary">
             <Plus className="w-4 h-4" />
             Add Review
+          </button>}
+          <button onClick={() => setQrOpen(true)} className="btn-secondary" title="QR code for your counter, receipts and flyers">
+            <QrCodeIcon className="w-4 h-4" />
+            QR Code
+          </button>
+          {can('reviews.request') && <button onClick={() => setBulkOpen(true)} className="btn-secondary" title="Upload a customer list">
+            <Users className="w-4 h-4" />
+            Send to Many
           </button>}
           {can('reviews.request') && <button onClick={() => setRequestModalOpen(true)} className="btn-primary flex-1 sm:flex-none">
             <Send className="w-4 h-4" />
@@ -440,6 +454,16 @@ export function ReviewsPage() {
           </div>
         )}
       </Modal>
+
+      <BulkRequestModal
+        isOpen={bulkOpen}
+        onClose={() => setBulkOpen(false)}
+        onDone={(message) => {
+          showToast(message);
+          refetchRequests();
+        }}
+      />
+      <QrCodeModal isOpen={qrOpen} onClose={() => setQrOpen(false)} />
 
       <ReviewRequestModal
         isOpen={requestModalOpen}

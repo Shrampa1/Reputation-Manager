@@ -15,12 +15,15 @@ interface LandingInfo {
 type Step = 'rate' | 'public' | 'feedback' | 'thanks';
 
 /**
- * Public page customers reach from a review-request email (no sign-in).
+ * Public page customers reach from a review-request email (/r/<token>) or by scanning the
+ * business's QR code (/q/<key>). No sign-in.
  * They rate the experience; happy customers are pointed to the public review page,
  * unhappy ones are invited to tell the business privately (and can still post publicly).
  */
-export function ReviewLandingPage() {
-  const { token = '' } = useParams();
+export function ReviewLandingPage({ mode = 'request' }: { mode?: 'request' | 'qr' }) {
+  const { token: linkToken = '', key = '' } = useParams();
+  // QR visitors get a token once they've rated; feedback and clicks are recorded against it
+  const [token, setToken] = useState(mode === 'qr' ? '' : linkToken);
   const [info, setInfo] = useState<LandingInfo | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [step, setStep] = useState<Step>('rate');
@@ -28,12 +31,16 @@ export function ReviewLandingPage() {
   const [hover, setHover] = useState<number | null>(null);
   const [reviewLink, setReviewLink] = useState<string | null>(null);
   const [feedback, setFeedback] = useState('');
+  // QR visitors are anonymous; they can leave an email if they'd like a reply
+  const isQr = mode === 'qr';
+  const [contactEmail, setContactEmail] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    callFunction<LandingInfo>('review-landing', { action: 'get', token })
+    const load = mode === 'qr' ? { action: 'qr-get', key } : { action: 'get', token: linkToken };
+    callFunction<LandingInfo>('review-landing', load)
       .then((data) => {
         if (cancelled) return;
         setInfo(data);
@@ -47,7 +54,7 @@ export function ReviewLandingPage() {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [mode, key, linkToken]);
 
   useEffect(() => {
     if (info) document.title = `Rate ${info.businessName}`;
@@ -58,7 +65,11 @@ export function ReviewLandingPage() {
     setBusy(true);
     setError(null);
     try {
-      const res = await callFunction<{ reviewLink: string | null; askFeedback: boolean }>('review-landing', { action: 'rate', token, rating: value });
+      const res = await callFunction<{ token?: string; reviewLink: string | null; askFeedback: boolean }>(
+        'review-landing',
+        mode === 'qr' ? { action: 'qr-rate', key, rating: value } : { action: 'rate', token, rating: value }
+      );
+      if (res.token) setToken(res.token);
       setReviewLink(res.reviewLink);
       setStep(res.askFeedback ? 'feedback' : 'public');
     } catch (err) {
@@ -72,10 +83,11 @@ export function ReviewLandingPage() {
   const handleFeedback = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!feedback.trim()) return setError('Write a few words first.');
+    if (contactEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail.trim())) return setError('Check your email address, or leave it blank.');
     setBusy(true);
     setError(null);
     try {
-      await callFunction('review-landing', { action: 'feedback', token, feedback: feedback.trim() });
+      await callFunction('review-landing', { action: 'feedback', token, feedback: feedback.trim(), ...(isQr && contactEmail.trim() ? { email: contactEmail.trim() } : {}) });
       setStep('thanks');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
@@ -86,7 +98,7 @@ export function ReviewLandingPage() {
 
   // Recorded in the background; the link opens in a new tab either way
   const trackClick = () => {
-    callFunction('review-landing', { action: 'clicked', token }).catch(() => undefined);
+    if (token) callFunction('review-landing', { action: 'clicked', token }).catch(() => undefined);
   };
 
   const shown = hover ?? rating ?? 0;
@@ -110,7 +122,7 @@ export function ReviewLandingPage() {
             {step === 'rate' && (
               <>
                 <h1 className="text-xl sm:text-2xl font-bold text-slate-900 mt-2">
-                  Hi {info.firstName}, how was your experience?
+                  {info.firstName ? `Hi ${info.firstName}, how was your experience?` : 'How was your experience?'}
                 </h1>
                 <p className="text-sm text-slate-500 mt-2">Tap a star to rate us.</p>
                 <div className="flex items-center justify-center gap-1.5 mt-6" role="radiogroup" aria-label="Rating" onMouseLeave={() => setHover(null)}>
@@ -139,7 +151,7 @@ export function ReviewLandingPage() {
                 <div className="flex items-center justify-center w-14 h-14 rounded-full bg-emerald-50 text-emerald-600 mx-auto mt-4">
                   <Heart className="w-7 h-7" />
                 </div>
-                <h1 className="text-xl font-bold text-slate-900 mt-4">Thank you, {info.firstName}!</h1>
+                <h1 className="text-xl font-bold text-slate-900 mt-4">{info.firstName ? `Thank you, ${info.firstName}!` : 'Thank you!'}</h1>
                 <p className="text-sm text-slate-500 mt-2">
                   Would you share your experience publicly? It really helps a local business like ours.
                 </p>
@@ -157,7 +169,9 @@ export function ReviewLandingPage() {
               <form onSubmit={handleFeedback} className="text-left mt-2" noValidate>
                 <h1 className="text-xl font-bold text-slate-900 text-center">We’re sorry we fell short</h1>
                 <p className="text-sm text-slate-500 mt-2 text-center">
-                  Tell us what happened and the owner will get back to you personally.
+                  {isQr
+                    ? 'Tell us what happened so we can put it right.'
+                    : 'Tell us what happened and the owner will get back to you personally.'}
                 </p>
                 <label htmlFor="landing-feedback" className="sr-only">Your feedback</label>
                 <textarea
@@ -169,6 +183,23 @@ export function ReviewLandingPage() {
                   className="input-field resize-none mt-5"
                   placeholder="What could we have done better?"
                 />
+                {isQr && (
+                  <>
+                    <label htmlFor="landing-email" className="block text-xs font-medium text-slate-600 mt-3 mb-1">
+                      Your email <span className="font-normal text-slate-400">(optional, if you’d like a reply)</span>
+                    </label>
+                    <input
+                      id="landing-email"
+                      type="email"
+                      value={contactEmail}
+                      onChange={(e) => setContactEmail(e.target.value)}
+                      maxLength={254}
+                      autoComplete="email"
+                      className="input-field"
+                      placeholder="you@example.com"
+                    />
+                  </>
+                )}
                 <button type="submit" disabled={busy} className="btn-primary w-full mt-3">
                   {busy && <Loader2 className="w-4 h-4 animate-spin" />}
                   Send to {info.businessName}
@@ -190,7 +221,9 @@ export function ReviewLandingPage() {
                   <Check className="w-7 h-7" />
                 </div>
                 <h1 className="text-xl font-bold text-slate-900 mt-4">Thanks for telling us</h1>
-                <p className="text-sm text-slate-500 mt-2">Your message went straight to {info.businessName}. We’ll be in touch.</p>
+                <p className="text-sm text-slate-500 mt-2">
+                  Your message went straight to {info.businessName}.{isQr && !contactEmail.trim() ? '' : ' We’ll be in touch.'}
+                </p>
                 {reviewLink && (
                   <p className="text-xs text-slate-400 mt-6">
                     You can also{' '}

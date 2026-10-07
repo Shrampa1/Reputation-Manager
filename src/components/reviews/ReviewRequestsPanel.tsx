@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { AlertCircle, Inbox as InboxIcon, Loader2, Lock, Mail } from 'lucide-react';
+import { AlertCircle, Inbox as InboxIcon, Loader2, Lock, Mail, QrCode } from 'lucide-react';
 import { requestOutcome } from '@/lib/reviewRequests';
 import { relativeTime } from '@/lib/activity';
 import type { ReviewRequest } from '@/types';
@@ -12,7 +12,7 @@ const toneClass = {
   rose: 'bg-rose-50 text-rose-600',
 };
 
-type Filter = 'all' | 'feedback' | 'waiting';
+type Filter = 'all' | 'feedback' | 'waiting' | 'qr';
 
 export function ReviewRequestsPanel({
   requests,
@@ -25,14 +25,17 @@ export function ReviewRequestsPanel({
 }) {
   const [filter, setFilter] = useState<Filter>('all');
 
-  const sent = requests.filter((r) => r.status === 'sent');
+  // QR-code visitors only appear once they've rated, so they'd skew the response rate
+  const sent = requests.filter((r) => r.status === 'sent' && r.channel !== 'qr');
   const responded = sent.filter((r) => r.rating !== null);
-  const toReviewPage = sent.filter((r) => r.clicked_review_at);
+  const toReviewPage = requests.filter((r) => r.status === 'sent' && r.clicked_review_at);
+  const qrCount = requests.filter((r) => r.channel === 'qr').length;
   const feedbackCount = requests.filter((r) => r.feedback).length;
 
   const shown = useMemo(() => {
     if (filter === 'feedback') return requests.filter((r) => r.feedback);
     if (filter === 'waiting') return requests.filter((r) => r.status === 'sent' && r.rating === null);
+    if (filter === 'qr') return requests.filter((r) => r.channel === 'qr');
     return requests;
   }, [requests, filter]);
 
@@ -68,11 +71,12 @@ export function ReviewRequestsPanel({
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         {([
           ['all', 'All'],
           ['waiting', 'No response'],
           ['feedback', `Private feedback${feedbackCount ? ` (${feedbackCount})` : ''}`],
+          ...(qrCount ? [['qr', `QR code (${qrCount})`]] : []),
         ] as [Filter, string][]).map(([key, label]) => (
           <button
             key={key}
@@ -101,7 +105,7 @@ export function ReviewRequestsPanel({
               <li key={r.id} className="p-4">
                 <div className="flex items-start gap-3">
                   <div className="flex items-center justify-center w-9 h-9 rounded-full bg-sky-50 text-sky-600 shrink-0">
-                    <Mail className="w-4 h-4" />
+                    {r.channel === 'qr' ? <QrCode className="w-4 h-4" /> : <Mail className="w-4 h-4" />}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -109,7 +113,7 @@ export function ReviewRequestsPanel({
                       <span className={`badge ${toneClass[outcome.tone]}`}>{outcome.label}</span>
                     </div>
                     <p className="text-xs text-slate-400 mt-0.5 truncate">
-                      {r.email} · {relativeTime(r.created_at)}
+                      {r.email ?? 'Scanned your QR code'} · {relativeTime(r.created_at)}
                     </p>
                     {r.status === 'failed' && r.error && <p className="text-xs text-rose-600 mt-1">{r.error}</p>}
                     {r.feedback && (
@@ -118,9 +122,13 @@ export function ReviewRequestsPanel({
                           <Lock className="w-3 h-3" /> Private feedback
                         </p>
                         <p className="text-sm text-slate-700 whitespace-pre-line">{r.feedback}</p>
-                        <a href={`mailto:${r.email}`} className="inline-block mt-2 text-xs font-medium text-sky-600 hover:underline">
-                          Reply to {r.customer_name.split(' ')[0]}
-                        </a>
+                        {r.email ? (
+                          <a href={`mailto:${r.email}`} className="inline-block mt-2 text-xs font-medium text-sky-600 hover:underline">
+                            {r.channel === 'qr' ? 'Reply by email' : `Reply to ${r.customer_name.split(' ')[0]}`}
+                          </a>
+                        ) : (
+                          <p className="mt-2 text-xs text-slate-400">Left anonymously via your QR code, so there’s no one to reply to.</p>
+                        )}
                       </div>
                     )}
                   </div>

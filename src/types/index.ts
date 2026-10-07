@@ -29,8 +29,10 @@ export interface ReviewRequest {
   location_id: string;
   lead_id: string | null;
   customer_name: string;
-  email: string;
-  channel: 'email' | 'sms';
+  /** Null for QR-code visitors */
+  email: string | null;
+  /** 'qr' = a customer who scanned the counter QR code */
+  channel: 'email' | 'sms' | 'qr';
   status: ReviewRequestStatus;
   error: string | null;
   /** Ratings of 1-3 were asked for private feedback first */
@@ -155,6 +157,8 @@ export interface Location {
   review_link: string | null;
   /** Ask 1-3 star customers for private feedback before showing the review link */
   review_shield_enabled: boolean;
+  /** Public id behind the counter QR code (/q/<key>) and the website widget */
+  public_key?: string;
   // Google listing, as last synced from the Places API (gbp_place_id holds the Places ID)
   google_rating?: number | null;
   google_review_count?: number | null;
@@ -391,4 +395,19 @@ export interface ChatMessage {
   from: 'lead' | 'owner';
   text: string;
   time: string;
+}
+
+// Website reviews widget (review_widgets table, one row per business location)
+export type ReviewWidgetLayout = 'carousel' | 'grid' | 'list' | 'badge';
+export interface ReviewWidgetSettings {
+  location_id: string;
+  enabled: boolean;
+  layout: ReviewWidgetLayout;
+  theme: 'light' | 'dark';
+  accent: string;
+  min_rating: number;
+  max_reviews: number;
+  require_text: boolean;
+  show_summary: boolean;
+  updated_at?: string;
 }

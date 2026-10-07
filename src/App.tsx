@@ -26,6 +26,7 @@ const TeamPage = page('TeamPage', () => import('@/pages/TeamPage'));
 const ActivityPage = page('ActivityPage', () => import('@/pages/ActivityPage'));
 const ReviewLandingPage = page('ReviewLandingPage', () => import('@/pages/ReviewLandingPage'));
 const ReportPage = page('ReportPage', () => import('@/pages/ReportPage'));
+const ReviewPosterPage = page('ReviewPosterPage', () => import('@/pages/ReviewPosterPage'));
 const BillingPage = page('BillingPage', () => import('@/pages/BillingPage'));
 const PlatformAdminPage = page('PlatformAdminPage', () => import('@/pages/PlatformAdminPage'));
 const LegalPage = page('LegalPage', () => import('@/pages/LegalPage'));
@@ -72,6 +73,8 @@ function App() {
       <Route path="/signup" element={<SignupPage />} />
       {/* Public: customers open this from a review-request email */}
       <Route path="/r/:token" element={<ReviewLandingPage />} />
+      {/* Public: customers scan the business's counter QR code */}
+      <Route path="/q/:key" element={<ReviewLandingPage mode="qr" />} />
       {/* Public legal pages (linked from the landing page footer) */}
       <Route path="/terms" element={<LegalPage page="terms" />} />
       <Route path="/privacy" element={<LegalPage page="privacy" />} />
@@ -83,6 +86,17 @@ function App() {
           <ProtectedRoute>
             <BusinessGate>
               <ReportPage />
+            </BusinessGate>
+          </ProtectedRoute>
+        }
+      />
+      {/* Print-ready QR code poster */}
+      <Route
+        path="/review-poster"
+        element={
+          <ProtectedRoute>
+            <BusinessGate>
+              <ReviewPosterPage />
             </BusinessGate>
           </ProtectedRoute>
         }

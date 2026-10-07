@@ -24,6 +24,7 @@ import { AlertsSettingsCard } from '@/components/AlertsSettingsCard';
 import { BrandingSettingsCard } from '@/components/BrandingSettingsCard';
 import { BusinessesCard } from '@/components/BusinessesCard';
 import { AccountDataCard } from '@/components/AccountDataCard';
+import { ReviewWidgetCard } from '@/components/ReviewWidgetCard';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD = 8;
@@ -364,6 +365,8 @@ export function SettingsPage() {
       <BusinessesCard />
 
       <ReviewSettingsCard />
+
+      <ReviewWidgetCard />
 
       <AlertsSettingsCard />
 
