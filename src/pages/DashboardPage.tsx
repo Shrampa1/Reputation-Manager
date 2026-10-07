@@ -23,6 +23,7 @@ import {
 import { useReviews, useLeads, useSmartTasks, useSocialPosts, useIntegrations } from '@/hooks/useSupabaseData';
 import { useLocationContext } from '@/context/LocationContext';
 import { computeSuggestions, loadDismissed, saveDismissed } from '@/lib/suggestions';
+import { GettingStarted } from '@/components/GettingStarted';
 import { CATEGORY_INFO, fetchActivity, relativeTime } from '@/lib/activity';
 import type { ActivityEntry, KPI } from '@/types';
 
@@ -244,6 +245,8 @@ export function DashboardPage() {
 
       {!isLoading && (
         <>
+          <GettingStarted integrations={integrations} />
+
           {/* KPI Grid */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             {kpis.map((kpi) => {

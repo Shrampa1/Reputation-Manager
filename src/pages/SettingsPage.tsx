@@ -23,6 +23,7 @@ import { ReviewSettingsCard } from '@/components/reviews/ReviewSettingsCard';
 import { AlertsSettingsCard } from '@/components/AlertsSettingsCard';
 import { BrandingSettingsCard } from '@/components/BrandingSettingsCard';
 import { BusinessesCard } from '@/components/BusinessesCard';
+import { AccountDataCard } from '@/components/AccountDataCard';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD = 8;
@@ -367,6 +368,8 @@ export function SettingsPage() {
       <AlertsSettingsCard />
 
       <BrandingSettingsCard />
+
+      <AccountDataCard />
 
       {/* Session */}
       <div className="card p-5 flex flex-col sm:flex-row sm:items-center gap-3">

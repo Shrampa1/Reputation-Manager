@@ -1,32 +1,49 @@
+import { lazy, Suspense } from 'react';
 import { Routes, Route } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { BottomNav, MobileHeader } from '@/components/layout/BottomNav';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-import { DashboardPage } from '@/pages/DashboardPage';
-import { ReviewsPage } from '@/pages/ReviewsPage';
-import { SeoPage } from '@/pages/SeoPage';
-import { SocialPage } from '@/pages/SocialPage';
-import { LeadsPage } from '@/pages/LeadsPage';
-import { IntegrationsPage } from '@/pages/IntegrationsPage';
-import { SettingsPage } from '@/pages/SettingsPage';
-import { TeamPage } from '@/pages/TeamPage';
-import { ActivityPage } from '@/pages/ActivityPage';
 import { AdminRoute } from '@/components/AdminRoute';
 import { BusinessGate } from '@/components/BusinessGate';
 import { LoginPage } from '@/pages/LoginPage';
 import { SignupPage } from '@/pages/SignupPage';
-import { ReviewLandingPage } from '@/pages/ReviewLandingPage';
-import { ReportPage } from '@/pages/ReportPage';
-import { BillingPage } from '@/pages/BillingPage';
-import { PlatformAdminPage } from '@/pages/PlatformAdminPage';
-import { LegalPage } from '@/pages/LegalPage';
-import { RoleAccessPage } from '@/pages/RoleAccessPage';
 import { useLocationContext } from '@/context/LocationContext';
+import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage';
+import { ResetPasswordPage } from '@/pages/ResetPasswordPage';
+
+// Pages are split into their own files and downloaded when first opened
+const page = <K extends string, P extends object>(name: K, load: () => Promise<Record<K, React.ComponentType<P>>>) =>
+  lazy(() => load().then((m) => ({ default: m[name] })));
+const DashboardPage = page('DashboardPage', () => import('@/pages/DashboardPage'));
+const ReviewsPage = page('ReviewsPage', () => import('@/pages/ReviewsPage'));
+const SeoPage = page('SeoPage', () => import('@/pages/SeoPage'));
+const SocialPage = page('SocialPage', () => import('@/pages/SocialPage'));
+const LeadsPage = page('LeadsPage', () => import('@/pages/LeadsPage'));
+const IntegrationsPage = page('IntegrationsPage', () => import('@/pages/IntegrationsPage'));
+const SettingsPage = page('SettingsPage', () => import('@/pages/SettingsPage'));
+const TeamPage = page('TeamPage', () => import('@/pages/TeamPage'));
+const ActivityPage = page('ActivityPage', () => import('@/pages/ActivityPage'));
+const ReviewLandingPage = page('ReviewLandingPage', () => import('@/pages/ReviewLandingPage'));
+const ReportPage = page('ReportPage', () => import('@/pages/ReportPage'));
+const BillingPage = page('BillingPage', () => import('@/pages/BillingPage'));
+const PlatformAdminPage = page('PlatformAdminPage', () => import('@/pages/PlatformAdminPage'));
+const LegalPage = page('LegalPage', () => import('@/pages/LegalPage'));
+const RoleAccessPage = page('RoleAccessPage', () => import('@/pages/RoleAccessPage'));
+
+function PageLoading() {
+  return (
+    <div className="flex items-center justify-center py-20" role="status" aria-label="Loading">
+      <Loader2 className="w-6 h-6 text-sky-500 animate-spin" />
+    </div>
+  );
+}
 
 /** Page routes, remounted when the user switches business so no page shows the old one's data. */
 function AppRoutes() {
   const { organization } = useLocationContext();
   return (
+    <Suspense fallback={<PageLoading />}>
     <Routes key={organization?.id ?? 'none'}>
       <Route path="/" element={<DashboardPage />} />
       <Route path="/reviews" element={<ReviewsPage />} />
@@ -41,13 +58,17 @@ function AppRoutes() {
       <Route path="/billing" element={<BillingPage />} />
       <Route path="/admin" element={<PlatformAdminPage />} />
     </Routes>
+    </Suspense>
   );
 }
 
 function App() {
   return (
+    <Suspense fallback={<PageLoading />}>
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/signup" element={<SignupPage />} />
       {/* Public: customers open this from a review-request email */}
       <Route path="/r/:token" element={<ReviewLandingPage />} />
@@ -86,6 +107,7 @@ function App() {
         }
       />
     </Routes>
+    </Suspense>
   );
 }
 
