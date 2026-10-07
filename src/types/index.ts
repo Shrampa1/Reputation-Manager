@@ -99,6 +99,8 @@ export interface Integration {
 }
 
 export type MemberRole = 'owner' | 'admin' | 'member';
+/** A member role, or 'superadmin' for the app's super admins (owner-level access everywhere) */
+export type ViewerRole = MemberRole | 'superadmin';
 
 // Activity log — written by database triggers, readable by owners/admins
 export type ActivityCategory = 'business' | 'team' | 'integrations' | 'posts' | 'leads' | 'reviews';

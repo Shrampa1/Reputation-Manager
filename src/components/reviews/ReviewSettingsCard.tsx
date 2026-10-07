@@ -19,7 +19,9 @@ function parseReviewLink(raw: string): { url: string | null; error: string | nul
 
 /** Settings → Review requests: where customers are sent, and the feedback shield. */
 export function ReviewSettingsCard() {
-  const { location, isAdmin, updateLocation } = useLocationContext();
+  const { location, updateLocation, can } = useLocationContext();
+  // Feature access (role default or Role access override)
+  const isAdmin = can('business.edit');
   const [link, setLink] = useState('');
   const [shield, setShield] = useState(true);
   const [saving, setSaving] = useState(false);

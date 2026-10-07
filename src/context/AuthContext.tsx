@@ -7,7 +7,7 @@ interface AuthContextValue {
   session: Session | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
-  signUp: (email: string, password: string, businessName: string) => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string, businessName: string) => Promise<{ error: string | null; needsConfirmation?: boolean }>;
   signOut: () => Promise<void>;
 }
 
@@ -43,31 +43,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: error?.message ?? null };
   }, []);
 
+  /**
+   * Creates the account. The business name is stored on the user; LocationProvider creates
+   * the business on the first signed-in load (right away, or after email confirmation).
+   * Returns `needsConfirmation` when the user must click the link in their email first.
+   */
   const signUp = useCallback(async (email: string, password: string, businessName: string) => {
-    // Store the business name on the user so the org can still be created on first
-    // sign-in if email confirmation is on (no session is returned until confirmed).
+    // Never create a second account on top of a signed-in one: the old session would stay
+    // active (when email confirmation is on) and the app would keep showing the old business.
+    const { data: current } = await supabase.auth.getSession();
+    if (current.session) {
+      await supabase.auth.signOut();
+      setSession(null);
+      setUser(null);
+    }
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { business_name: businessName } },
+      options: { data: { business_name: businessName.trim() } },
     });
     if (error) return { error: error.message };
-
     if (!data.user?.id) return { error: 'Sign-up succeeded but no user ID was returned.' };
-
-    if (!data.session) {
-      return { error: null };
-    }
-
-    // Creates the organization, owner membership and default location in one
-    // server-side transaction (see migration 002_secure_org_membership).
-    const { error: orgError } = await supabase.rpc('create_organization_for_current_user', {
-      business_name: businessName,
-    });
-
-    if (orgError) return { error: `Failed to create organization: ${orgError.message}` };
-
-    return { error: null };
+    return { error: null, needsConfirmation: !data.session };
   }, []);
 
   const signOut = useCallback(async () => {

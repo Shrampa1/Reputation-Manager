@@ -78,7 +78,10 @@ interface ActionItem {
 
 export function DashboardPage() {
   const navigate = useNavigate();
-  const { location, organization, isAdmin } = useLocationContext();
+  const { location, organization, isAdmin: isAdminRole, can } = useLocationContext();
+  // Activity widget and connection links follow Role access
+  const isAdmin = can('activity.view');
+  const canIntegrations = can('integrations.manage');
   const { reviews, loading: reviewsLoading } = useReviews();
   const { leads, loading: leadsLoading } = useLeads();
   const { posts, loading: postsLoading } = useSocialPosts();
@@ -119,8 +122,8 @@ export function DashboardPage() {
   const leadsPrev7 = leads.filter((l) => inLast(l.created_at, 14, 7)).length;
 
   const suggestions = useMemo(
-    () => computeSuggestions({ reviews, leads, posts, integrations, location, isAdmin }),
-    [reviews, leads, posts, integrations, location, isAdmin]
+    () => computeSuggestions({ reviews, leads, posts, integrations, location, isAdmin: isAdminRole }),
+    [reviews, leads, posts, integrations, location, isAdminRole]
   );
 
   const dismiss = (id: string) => {
@@ -212,7 +215,7 @@ export function DashboardPage() {
       <div className="text-sm">
         <span className="font-semibold text-slate-900">{health.strong}</span> <span className="text-slate-500">{health.rest}</span>
       </div>
-      {isAdmin && <ChevronRight className="w-4 h-4 text-slate-300" />}
+      {canIntegrations && <ChevronRight className="w-4 h-4 text-slate-300" />}
     </div>
   );
 
@@ -225,11 +228,11 @@ export function DashboardPage() {
           <p className="text-sm text-slate-500 mt-1">Here's what's happening with your business today.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {healthPill && (isAdmin ? <Link to="/integrations" className="hover:opacity-90 transition-opacity">{healthPill}</Link> : healthPill)}
-          <Link to="/report" className="btn-secondary">
+          {healthPill && (canIntegrations ? <Link to="/integrations" className="hover:opacity-90 transition-opacity">{healthPill}</Link> : healthPill)}
+          {can('reports.download') && <Link to="/report" className="btn-secondary">
             <FileDown className="w-4 h-4" />
             Download report
-          </Link>
+          </Link>}
         </div>
       </div>
 

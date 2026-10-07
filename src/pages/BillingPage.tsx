@@ -10,13 +10,13 @@ const formatDate = (iso: string | null | undefined) =>
   iso ? new Date(iso).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : null;
 
 export function BillingPage() {
-  const { organization, role } = useLocationContext();
+  const { organization, can } = useLocationContext();
   const { plans, usage, loading, error, reload } = usePlan();
   const [params, setParams] = useSearchParams();
   const [busy, setBusy] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const isOwner = role === 'owner';
+  const isOwner = can('billing.manage');
 
   // Back from Lemon Squeezy checkout: the webhook may take a few seconds to arrive
   useEffect(() => {

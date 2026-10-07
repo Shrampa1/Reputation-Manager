@@ -12,19 +12,40 @@ export function SignupPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [sentTo, setSentTo] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const { error: signUpError } = await signUp(email, password, businessName);
+    const { error: signUpError, needsConfirmation } = await signUp(email, password, businessName);
     setLoading(false);
     if (signUpError) {
       setError(signUpError);
+    } else if (needsConfirmation) {
+      setSentTo(email);
     } else {
       navigate('/');
     }
   };
+
+  if (sentTo) {
+    return (
+      <AuthLayout>
+        <div className="text-center">
+          <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-sky-50 text-sky-600 mx-auto mb-4">
+            <Mail className="w-6 h-6" />
+          </div>
+          <h2 className="text-2xl font-bold text-slate-900">Check your email</h2>
+          <p className="text-sm text-slate-500 mt-2">
+            We sent a confirmation link to <span className="font-semibold text-slate-700">{sentTo}</span>. Click it to finish
+            creating your account; your business is set up as soon as you sign in.
+          </p>
+          <Link to="/login" className="btn-secondary w-full mt-6">Go to sign in</Link>
+        </div>
+      </AuthLayout>
+    );
+  }
 
   return (
     <AuthLayout>

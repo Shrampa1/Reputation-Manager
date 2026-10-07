@@ -14,6 +14,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { useReviews } from '@/hooks/useSupabaseData';
+import { useLocationContext } from '@/context/LocationContext';
 import { supabase } from '@/lib/supabase';
 import { useLocation } from '@/hooks/useSupabaseData';
 import type { Review, ReviewPlatformFilter } from '@/types';
@@ -69,6 +70,7 @@ export function ReviewsPage() {
     }
   };
   const { location } = useLocation();
+  const { can } = useLocationContext();
   const [activeFilter, setActiveFilter] = useState<ReviewPlatformFilter>('all');
   const [search, setSearch] = useState('');
   const [replyReview, setReplyReview] = useState<Review | null>(null);
@@ -184,14 +186,14 @@ export function ReviewsPage() {
               Sync Google
             </button>
           )}
-          <button onClick={() => setAddReviewOpen(true)} className="btn-secondary">
+          {can('reviews.add') && <button onClick={() => setAddReviewOpen(true)} className="btn-secondary">
             <Plus className="w-4 h-4" />
             Add Review
-          </button>
-          <button onClick={() => setRequestModalOpen(true)} className="btn-primary flex-1 sm:flex-none">
+          </button>}
+          {can('reviews.request') && <button onClick={() => setRequestModalOpen(true)} className="btn-primary flex-1 sm:flex-none">
             <Send className="w-4 h-4" />
             Send Review Request
-          </button>
+          </button>}
         </div>
       </div>
 
@@ -310,6 +312,8 @@ export function ReviewsPage() {
                     <div className="flex items-center gap-2 mt-3">
                       <button
                         onClick={() => openReplyModal(review)}
+                        disabled={!can('reviews.reply') && !review.is_replied}
+                        title={!can('reviews.reply') && !review.is_replied ? 'You don’t have access to reply to reviews' : undefined}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-50 text-sky-600 text-xs font-medium hover:bg-sky-100 transition-colors"
                       >
                         <Sparkles className="w-3.5 h-3.5" />

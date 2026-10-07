@@ -4,7 +4,7 @@ import { Building2, Check, ChevronsUpDown, Loader2, Plus } from 'lucide-react';
 import { useLocationContext } from '@/context/LocationContext';
 import { Modal } from '@/components/ui/Modal';
 
-const roleLabel = { owner: 'Owner', admin: 'Admin', member: 'Member' } as const;
+const roleLabel = { superadmin: 'Super admin', owner: 'Owner', admin: 'Admin', member: 'Member' } as const;
 
 /** Form to create another business (allowed by the Agency plan). */
 export function AddBusinessModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {

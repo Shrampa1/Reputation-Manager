@@ -230,6 +230,8 @@ function SpeedDetails({ audit }: { audit: WebsiteAudit }) {
 }
 
 function AuditReport({ audit, onPlan }: { audit: WebsiteAudit; onPlan: (a: WebsiteAudit) => void }) {
+  const { can } = useLocationContext();
+  const canAudit = can('seo.audit');
   const [planning, setPlanning] = useState(false);
   const [planError, setPlanError] = useState<string | null>(null);
   const checks = audit.results.checks ?? [];
@@ -321,14 +323,14 @@ function AuditReport({ audit, onPlan }: { audit: WebsiteAudit; onPlan: (a: Websi
             <p className="text-xs text-slate-400">What to fix first, in plain English{audit.platform ? `, with ${audit.platform} steps` : ''}</p>
           </div>
           {audit.recommendations && (
-            <button onClick={handlePlan} disabled={planning} className="btn-ghost text-xs">
+            <button onClick={handlePlan} disabled={planning || !canAudit} className="btn-ghost text-xs">
               {planning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />} Redo
             </button>
           )}
         </div>
         {!audit.recommendations ? (
           <div className="text-center py-4">
-            <button onClick={handlePlan} disabled={planning} className="btn-primary">
+            <button onClick={handlePlan} disabled={planning || !canAudit} className="btn-primary">
               {planning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
               {planning ? 'Writing your plan… (up to a minute)' : 'Get my fix plan'}
             </button>
@@ -457,7 +459,8 @@ function AuditReport({ audit, onPlan }: { audit: WebsiteAudit; onPlan: (a: Websi
 }
 
 export function WebsiteHealth() {
-  const { location } = useLocationContext();
+  const { location, can } = useLocationContext();
+  const canAudit = can('seo.audit');
   const { audits, loading, error: loadError, upsertLocal } = useWebsiteAudits();
   const [url, setUrl] = useState('');
   const [storeMode, setStoreMode] = useState<'auto' | 'yes' | 'no'>('auto');
@@ -524,7 +527,7 @@ export function WebsiteHealth() {
             <option value="yes">It’s an online store</option>
             <option value="no">Not a store</option>
           </select>
-          <button type="submit" disabled={running} className="btn-primary shrink-0">
+          <button type="submit" disabled={running || !canAudit} title={canAudit ? undefined : 'You don’t have access to run website checks'} className="btn-primary shrink-0">
             {running ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
             {running ? 'Checking…' : 'Run check'}
           </button>

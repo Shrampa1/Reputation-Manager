@@ -64,7 +64,9 @@ function SectionHeader({ icon: Icon, title, subtitle }: { icon: typeof UserIcon;
 
 export function SettingsPage() {
   const { user, signOut } = useAuth();
-  const { organization, location, role, isAdmin, updateOrganizationName } = useLocationContext();
+  const { organization, location, role, updateOrganizationName, can } = useLocationContext();
+  // Feature access (role default or Role access override)
+  const isAdmin = can('business.edit');
   const navigate = useNavigate();
   const { hash } = useRouterLocation();
 

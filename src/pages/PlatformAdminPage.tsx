@@ -70,7 +70,7 @@ export function PlatformAdminPage() {
 
   const open = (b: AdminBusiness) =>
     act(`open-${b.id}`, async () => {
-      if (!b.you_are_member) await callFunction('platform-admin', { action: 'join', organizationId: b.id });
+      // Super admins have owner-level access everywhere, so no need to join the team
       await switchOrganization(b.id);
       navigate('/');
     });
@@ -91,8 +91,8 @@ export function PlatformAdminPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2"><ShieldCheck className="w-6 h-6 text-violet-600" /> Platform admin</h1>
-        <p className="text-sm text-slate-500 mt-1">Every business on Reputation Engine. Opening one adds you as an admin, which is recorded in its activity log.</p>
+        <h1 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2"><ShieldCheck className="w-6 h-6 text-violet-600" /> Super admin</h1>
+        <p className="text-sm text-slate-500 mt-1">Every business on Reputation Engine. As a super admin you have owner-level access to all of them; anything you change is recorded under your name in that business’s activity log.</p>
       </div>
 
       <div className="grid grid-cols-3 gap-3">

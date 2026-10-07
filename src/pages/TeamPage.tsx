@@ -44,7 +44,8 @@ function formatDate(iso: string) {
 
 export function TeamPage() {
   const { user } = useAuth();
-  const { organization, role: myRole, isAdmin, refresh: refreshContext, loading: orgLoading, error: orgError } = useLocationContext();
+  const { organization, role: myRole, can: canAccess, isSuperAdmin, refresh: refreshContext, loading: orgLoading, error: orgError } = useLocationContext();
+  const canManageTeam = canAccess('team.manage');
   const navigate = useNavigate();
 
   const [members, setMembers] = useState<TeamMember[]>([]);
@@ -164,7 +165,9 @@ export function TeamPage() {
         },
         transfer: {
           title: `Make ${confirm.member.full_name || confirm.member.email} the owner?`,
-          body: 'There can only be one owner. You’ll become an admin and won’t be able to change roles or transfer ownership back yourself.',
+          body: myRole === 'superadmin'
+            ? 'There can only be one owner. The current owner becomes an admin.'
+            : 'There can only be one owner. You’ll become an admin and won’t be able to change roles or transfer ownership back yourself.',
           button: 'Transfer ownership',
           danger: true,
         },
@@ -194,8 +197,14 @@ export function TeamPage() {
         )}
       </div>
 
+      {isSuperAdmin && myRole === 'superadmin' && (
+        <p className="text-xs text-violet-700 bg-violet-50 rounded-xl px-3 py-2">
+          You’re viewing as a super admin: you have owner-level access here without being on the team.
+        </p>
+      )}
+
       {/* Invite */}
-      {isAdmin ? (
+      {canManageTeam && myRole !== 'member' ? (
         <form onSubmit={handleInvite} className="card p-5" noValidate>
           <div className="flex items-start gap-3 mb-4">
             <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-sky-50 text-sky-600 shrink-0">
@@ -225,7 +234,7 @@ export function TeamPage() {
               className="input-field sm:w-36"
             >
               <option value="member">Member</option>
-              {myRole === 'owner' && <option value="admin">Admin</option>}
+              {(myRole === 'owner' || myRole === 'superadmin') && <option value="admin">Admin</option>}
             </select>
             <button type="submit" disabled={inviting || !inviteEmail.trim()} className="btn-primary shrink-0">
               {inviting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
@@ -287,7 +296,7 @@ export function TeamPage() {
         ) : (
           <ul className="divide-y divide-slate-100">
             {members.map((m) => {
-              const can = permissionsFor(myRole, user?.id, m);
+              const can = permissionsFor(myRole, user?.id, m, canManageTeam);
               const isSelf = m.user_id === user?.id;
               const pending = !m.last_sign_in_at;
               const busy = busyUserId === m.user_id;

@@ -43,7 +43,7 @@ function Section({ title, color, children }: { title: string; color: string; chi
 
 /** A print-ready report of the business's online presence. "Download PDF" uses the browser's Save as PDF. */
 export function ReportPage() {
-  const { location, organization } = useLocationContext();
+  const { location, organization, can, loading: contextLoading } = useLocationContext();
   const { settings, loading: settingsLoading } = useReportSettings();
   const { reviews, loading: reviewsLoading } = useReviews();
   const { leads, loading: leadsLoading } = useLeads();
@@ -101,6 +101,17 @@ export function ReportPage() {
   const loading = settingsLoading || reviewsLoading || leadsLoading || auditsLoading;
 
   if (!location) return null;
+  if (!contextLoading && !can('reports.download')) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
+        <div className="card p-8 max-w-md text-center">
+          <h1 className="text-base font-bold text-slate-900">You don’t have access to reports</h1>
+          <p className="text-sm text-slate-500 mt-1">Ask the owner of your business if you need access.</p>
+          <Link to="/" className="btn-secondary mt-4">Back to dashboard</Link>
+        </div>
+      </div>
+    );
+  }
   const brand = settings?.brand_name || organization?.name || location.name;
   const g = location.google_listing;
 

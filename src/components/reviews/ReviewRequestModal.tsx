@@ -24,7 +24,9 @@ export function ReviewRequestModal({
   leadId?: string | null;
   onSent: (message: string) => void;
 }) {
-  const { location, isAdmin } = useLocationContext();
+  const { location, can } = useLocationContext();
+  // Feature access (role default or Role access override)
+  const isAdmin = can('business.edit');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [note, setNote] = useState('');

@@ -7,7 +7,9 @@ import { DEFAULT_BRAND_COLOR, useReportSettings } from '@/lib/reportSettings';
 
 /** Settings → Report branding: name, logo and colour on downloadable reports. */
 export function BrandingSettingsCard() {
-  const { organization, isAdmin } = useLocationContext();
+  const { organization, can } = useLocationContext();
+  // Feature access (role default or Role access override)
+  const isAdmin = can('business.edit');
   const { settings, save } = useReportSettings();
   const fileRef = useRef<HTMLInputElement>(null);
   const [brandName, setBrandName] = useState('');

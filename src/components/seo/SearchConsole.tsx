@@ -244,7 +244,9 @@ function IndexingPanel({ site }: { site: string }) {
 }
 
 export function SearchConsole() {
-  const { isAdmin } = useLocationContext();
+  const { can } = useLocationContext();
+  // Feature access (role default or Role access override)
+  const isAdmin = can('integrations.manage');
   const [status, setStatus] = useState<GscStatus | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [days, setDays] = useState(28);

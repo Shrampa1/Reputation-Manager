@@ -73,7 +73,9 @@ function bestValue(row: Row, cols: Column[]) {
 }
 
 export function Competitors() {
-  const { location, isAdmin } = useLocationContext();
+  const { location, can } = useLocationContext();
+  // Feature access (role default or Role access override)
+  const isAdmin = can('seo.competitors');
   const { competitors, loading, upsertLocal, removeLocal } = useCompetitors();
   const { audits } = useWebsiteAudits(1);
   const [query, setQuery] = useState('');

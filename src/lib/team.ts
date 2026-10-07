@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { callFunction } from '@/lib/functions';
-import type { MemberRole, TeamMember } from '@/types';
+import type { MemberRole, TeamMember, ViewerRole } from '@/types';
 
 export const ROLE_INFO: Record<MemberRole, { label: string; color: string; description: string }> = {
   owner: {
@@ -20,16 +20,19 @@ export const ROLE_INFO: Record<MemberRole, { label: string; color: string; descr
   },
 };
 
-/** What the signed-in user (with role `myRole`) may do to `target`. Mirrors the database rules. */
-export function permissionsFor(myRole: MemberRole | null, myUserId: string | undefined, target: TeamMember) {
+/**
+ * What the signed-in user (with role `myRole`) may do to `target`. Mirrors the database rules.
+ * Super admins act like the owner; `canManageTeam` is the "Manage team" access from Role access.
+ */
+export function permissionsFor(myRole: ViewerRole | null, myUserId: string | undefined, target: TeamMember, canManageTeam = true) {
   const isSelf = target.user_id === myUserId;
-  const isOwner = myRole === 'owner';
+  const ownerLike = myRole === 'owner' || myRole === 'superadmin';
   const isAdmin = myRole === 'admin';
   return {
-    changeRole: isOwner && !isSelf && target.role !== 'owner',
-    remove: !isSelf && target.role !== 'owner' && (isOwner || (isAdmin && target.role === 'member')),
+    changeRole: ownerLike && canManageTeam && !isSelf && target.role !== 'owner',
+    remove: canManageTeam && !isSelf && target.role !== 'owner' && (ownerLike || (isAdmin && target.role === 'member')),
     // Only to someone who has accepted their invite, so the business always has an active owner
-    makeOwner: isOwner && !isSelf && Boolean(target.last_sign_in_at),
+    makeOwner: ownerLike && !isSelf && target.role !== 'owner' && Boolean(target.last_sign_in_at),
     leave: isSelf && target.role !== 'owner',
   };
 }

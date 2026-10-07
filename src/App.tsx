@@ -20,6 +20,7 @@ import { ReportPage } from '@/pages/ReportPage';
 import { BillingPage } from '@/pages/BillingPage';
 import { PlatformAdminPage } from '@/pages/PlatformAdminPage';
 import { LegalPage } from '@/pages/LegalPage';
+import { RoleAccessPage } from '@/pages/RoleAccessPage';
 import { useLocationContext } from '@/context/LocationContext';
 
 /** Page routes, remounted when the user switches business so no page shows the old one's data. */
@@ -32,8 +33,9 @@ function AppRoutes() {
       <Route path="/seo" element={<SeoPage />} />
       <Route path="/social" element={<SocialPage />} />
       <Route path="/leads" element={<LeadsPage />} />
-      <Route path="/integrations" element={<AdminRoute><IntegrationsPage /></AdminRoute>} />
-      <Route path="/activity" element={<AdminRoute><ActivityPage /></AdminRoute>} />
+      <Route path="/integrations" element={<AdminRoute permission="integrations.manage"><IntegrationsPage /></AdminRoute>} />
+      <Route path="/activity" element={<AdminRoute permission="activity.view"><ActivityPage /></AdminRoute>} />
+      <Route path="/access" element={<RoleAccessPage />} />
       <Route path="/settings" element={<SettingsPage />} />
       <Route path="/team" element={<TeamPage />} />
       <Route path="/billing" element={<BillingPage />} />

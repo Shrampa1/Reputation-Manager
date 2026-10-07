@@ -35,7 +35,9 @@ function Toggle({ checked, onChange, disabled, label }: { checked: boolean; onCh
 
 /** Settings → Alerts & reports: daily website monitoring and the weekly summary email. */
 export function AlertsSettingsCard() {
-  const { location, isAdmin } = useLocationContext();
+  const { location, can } = useLocationContext();
+  // Feature access (role default or Role access override)
+  const isAdmin = can('business.edit');
   const [settings, setSettings] = useState<NotificationSettings | null>(null);
   const [monitoring, setMonitoring] = useState(true);
   const [digest, setDigest] = useState(true);

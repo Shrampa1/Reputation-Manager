@@ -45,7 +45,7 @@ export function BottomNav() {
 
 export function MobileHeader() {
   const { user, signOut } = useAuth();
-  const { isAdmin } = useLocationContext();
+  const { can } = useLocationContext();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -57,7 +57,7 @@ export function MobileHeader() {
     <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between px-4 h-14 bg-white/90 backdrop-blur-lg border-b border-slate-200/80">
       <Logo className="text-sm" markClassName="w-8 h-8" />
       <div className="flex items-center gap-2">
-        {isAdmin && (
+        {can('integrations.manage') && (
         <NavLink
           to="/integrations"
           title="Integrations"

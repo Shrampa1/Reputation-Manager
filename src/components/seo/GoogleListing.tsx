@@ -95,7 +95,9 @@ function BusinessDetailsEditor({ location, onSaved }: { location: Location; onSa
 }
 
 export function GoogleListing({ onToast }: { onToast: (msg: string) => void }) {
-  const { location, isAdmin, refresh } = useLocationContext();
+  const { location, refresh, can } = useLocationContext();
+  // Feature access (role default or Role access override)
+  const isAdmin = can('business.edit');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<PlaceCandidate[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);

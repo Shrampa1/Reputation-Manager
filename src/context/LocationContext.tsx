@@ -2,7 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { supabase } from '@/lib/supabase';
 import { setActiveOrganizationId } from '@/lib/functions';
 import { useAuth } from '@/context/AuthContext';
-import type { Location, MemberRole, Organization } from '@/types';
+import { defaultPermissions, type Permission } from '@/lib/permissions';
+import type { Location, MemberRole, Organization, ViewerRole } from '@/types';
 
 type LocationFields = Partial<Pick<Location, 'name' | 'address' | 'phone' | 'website' | 'review_link' | 'review_shield_enabled'>>;
 
@@ -10,14 +11,20 @@ type LocationFields = Partial<Pick<Location, 'name' | 'address' | 'phone' | 'web
 export interface BusinessMembership {
   id: string;
   name: string;
-  role: MemberRole;
+  role: ViewerRole;
 }
 
 interface LocationContextValue {
   location: Location | null;
   organization: Pick<Organization, 'id' | 'name'> | null;
-  role: MemberRole | null;
+  role: ViewerRole | null;
+  /** Owner, admin or super admin */
   isAdmin: boolean;
+  /** Owner or super admin (ownership transfer, managing access) */
+  isOwnerLike: boolean;
+  isSuperAdmin: boolean;
+  /** Effective feature access in the active business (role defaults + Role access overrides) */
+  can: (permission: Permission) => boolean;
   /** Every business the user belongs to (for the business switcher) */
   memberships: BusinessMembership[];
   /** The app owner: can see every business in Platform admin */
@@ -59,7 +66,8 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [location, setLocation] = useState<Location | null>(null);
   const [organization, setOrganization] = useState<Pick<Organization, 'id' | 'name'> | null>(null);
-  const [role, setRole] = useState<MemberRole | null>(null);
+  const [role, setRole] = useState<ViewerRole | null>(null);
+  const [permissions, setPermissions] = useState<Record<string, boolean> | null>(null);
   const [memberships, setMemberships] = useState<BusinessMembership[]>([]);
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -70,6 +78,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
       setLocation(null);
       setOrganization(null);
       setRole(null);
+      setPermissions(null);
       setMemberships([]);
       setActiveOrganizationId(null);
       setError(null);
@@ -90,18 +99,30 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
     let { data: rows, error: memberError } = await fetchMemberships();
     if (isCancelled()) return;
 
-    // First sign-in after email confirmation: the org wasn't created at sign-up
-    // because there was no session yet, so create it now from the saved name.
-    const pendingBusinessName = user.user_metadata?.business_name as string | undefined;
-    if (!memberError && (rows?.length ?? 0) === 0 && pendingBusinessName) {
-      const { error: orgError } = await supabase.rpc('create_organization_for_current_user', {
-        business_name: pendingBusinessName,
-      });
-      if (isCancelled()) return;
-      if (orgError) {
-        memberError = orgError;
-      } else {
-        ({ data: rows, error: memberError } = await fetchMemberships());
+    // First signed-in load after sign-up: create the business the user typed on the sign-up
+    // form. This also runs when they already belong to someone else's business (e.g. they
+    // were invited before signing up), so they still get their own business as owner.
+    // The saved name is cleared afterwards so this only ever happens once.
+    let createdOrgId: string | undefined;
+    const pendingBusinessName = (user.user_metadata?.business_name as string | undefined)?.trim();
+    if (!memberError && pendingBusinessName) {
+      const ownsBusiness = (rows ?? []).some((m) => m.role === 'owner');
+      if (!ownsBusiness) {
+        const { data: newOrgId, error: orgError } = (rows?.length ?? 0) === 0
+          ? await supabase.rpc('create_organization_for_current_user', { business_name: pendingBusinessName })
+          : await supabase.rpc('create_additional_business', { business_name: pendingBusinessName });
+        if (isCancelled()) return;
+        if (orgError) {
+          memberError = orgError;
+        } else {
+          createdOrgId = (newOrgId as string | null) ?? undefined;
+          ({ data: rows, error: memberError } = await fetchMemberships());
+          if (isCancelled()) return;
+        }
+      }
+      if (!memberError) {
+        // Done (or not needed because they already own a business): don't do it again
+        await supabase.auth.updateUser({ data: { business_name: null } });
         if (isCancelled()) return;
       }
     }
@@ -112,10 +133,20 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const list: BusinessMembership[] = (rows ?? []).map((m) => {
+    let list: BusinessMembership[] = (rows ?? []).map((m) => {
       const org = Array.isArray(m.organizations) ? m.organizations[0] : m.organizations;
       return { id: m.organization_id as string, name: (org?.name as string | undefined) ?? '', role: m.role as MemberRole };
     });
+    // Includes every business for super admins (falls back to memberships before migration 015)
+    const { data: businesses, error: businessesError } = await supabase.rpc('get_my_businesses');
+    if (isCancelled()) return;
+    if (!businessesError && Array.isArray(businesses)) {
+      list = (businesses as { organization_id: string; name: string; role: string }[]).map((b) => ({
+        id: b.organization_id,
+        name: b.name,
+        role: b.role as ViewerRole,
+      }));
+    }
     setMemberships(list);
 
     if (list.length === 0) {
@@ -127,12 +158,17 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const wanted = preferredOrgId ?? readStored(user.id);
+    // A business just created from the sign-up form opens first
+    const wanted = createdOrgId ?? preferredOrgId ?? readStored(user.id);
     const active = list.find((m) => m.id === wanted) ?? list[0];
     setActiveOrganizationId(active.id);
     writeStored(user.id, active.id);
     setOrganization({ id: active.id, name: active.name });
     setRole(active.role);
+
+    const { data: perms, error: permsError } = await supabase.rpc('get_my_permissions', { p_org: active.id });
+    if (isCancelled()) return;
+    setPermissions(!permsError && perms && typeof perms === 'object' ? (perms as Record<string, boolean>) : defaultPermissions(active.role));
 
     const { data: locData, error: locError } = await supabase
       .from('locations')
@@ -214,12 +250,17 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
     return { error: null };
   }, [organization]);
 
+  const can = useCallback((permission: Permission) => Boolean(permissions?.[permission]), [permissions]);
+
   const value = useMemo<LocationContextValue>(
     () => ({
       location,
       organization,
       role,
-      isAdmin: role === 'owner' || role === 'admin',
+      isAdmin: role === 'owner' || role === 'admin' || role === 'superadmin',
+      isOwnerLike: role === 'owner' || role === 'superadmin',
+      isSuperAdmin: role === 'superadmin' || isPlatformAdmin,
+      can,
       memberships,
       isPlatformAdmin,
       loading,
@@ -230,7 +271,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
       updateLocation,
       updateOrganizationName,
     }),
-    [location, organization, role, memberships, isPlatformAdmin, loading, error, refresh, switchOrganization, createBusiness, updateLocation, updateOrganizationName]
+    [location, organization, role, can, memberships, isPlatformAdmin, loading, error, refresh, switchOrganization, createBusiness, updateLocation, updateOrganizationName]
   );
 
   return <LocationContext.Provider value={value}>{children}</LocationContext.Provider>;

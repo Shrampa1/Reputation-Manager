@@ -15,6 +15,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { useIntegrations, useLocation, useReviews, useSocialPosts } from '@/hooks/useSupabaseData';
+import { useLocationContext } from '@/context/LocationContext';
 import type { PostPlatform, PostStatus, Review, SocialPost } from '@/types';
 import { StarRating } from '@/components/ui/StarRating';
 import { NewPostModal } from '@/components/social/NewPostModal';
@@ -69,6 +70,8 @@ export function SocialPage() {
   const { reviews, loading: reviewsLoading } = useReviews();
   const { posts, loading: postsLoading, refetch: refetchPosts } = useSocialPosts();
   const { location } = useLocation();
+  const { can } = useLocationContext();
+  const canPublish = can('social.publish');
   const { byProvider } = useIntegrations();
   const [composerOpen, setComposerOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<SocialPost | null>(null);
@@ -133,7 +136,7 @@ export function SocialPage() {
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Social Publisher</h1>
           <p className="text-sm text-slate-500 mt-1">Schedule posts, generate content, and turn reviews into graphics.</p>
         </div>
-        <button className="btn-primary" onClick={() => openComposer()}>
+        <button className="btn-primary" onClick={() => openComposer()} disabled={!canPublish} title={canPublish ? undefined : 'You don’t have access to create posts'}>
           <Plus className="w-4 h-4" />
           New Post
         </button>
@@ -184,7 +187,7 @@ export function SocialPage() {
           </div>
 
           {/* AI Content Calendar Generator */}
-          <ContentPlanner
+          {canPublish && <ContentPlanner
             location={location}
             byProvider={byProvider}
             onUseIdea={(idea, scheduleAt) => openComposer(idea.content, [idea.platform], scheduleAt)}
@@ -192,7 +195,7 @@ export function SocialPage() {
               showToast(`${count} draft${count === 1 ? '' : 's'} added to your calendar`);
               refetchPosts();
             }}
-          />
+          />}
 
           {/* View toggle */}
           <div className="flex items-center gap-2">

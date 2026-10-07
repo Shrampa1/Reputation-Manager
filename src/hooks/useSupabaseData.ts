@@ -198,7 +198,8 @@ export function useMemberRole() {
  * (via get_integration_statuses) — enough for the New Post form.
  */
 export function useIntegrations() {
-  const { location, loading: locationLoading, isAdmin } = useLocationContext();
+  const { location, loading: locationLoading, can } = useLocationContext();
+  const isAdmin = can('integrations.manage');
   const organizationId = location?.organization_id;
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [loading, setLoading] = useState(true);

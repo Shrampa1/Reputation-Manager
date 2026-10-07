@@ -1,5 +1,6 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Star, MapPin, CalendarDays, Inbox, LogOut, Plug, UserCog, Users, History, CreditCard, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Star, MapPin, CalendarDays, Inbox, LogOut, Plug, UserCog, Users, History, CreditCard, ShieldCheck, KeyRound } from 'lucide-react';
+import type { Permission } from '@/lib/permissions';
 import { Logo } from '@/components/Logo';
 import { BusinessSwitcher } from '@/components/BusinessSwitcher';
 import { useAuth } from '@/context/AuthContext';
@@ -15,16 +16,17 @@ const navItems = [
 ];
 
 const settingsItems = [
-  { label: 'Integrations', path: '/integrations', icon: Plug, adminOnly: true },
-  { label: 'Team', path: '/team', icon: Users, adminOnly: false },
-  { label: 'Activity', path: '/activity', icon: History, adminOnly: true },
-  { label: 'Plan & billing', path: '/billing', icon: CreditCard, adminOnly: true },
-  { label: 'Profile & Settings', path: '/settings', icon: UserCog, adminOnly: false },
+  { label: 'Integrations', path: '/integrations', icon: Plug, permission: 'integrations.manage' as Permission },
+  { label: 'Team', path: '/team', icon: Users },
+  { label: 'Role access', path: '/access', icon: KeyRound, ownerOnly: true },
+  { label: 'Activity', path: '/activity', icon: History, permission: 'activity.view' as Permission },
+  { label: 'Plan & billing', path: '/billing', icon: CreditCard, permission: 'billing.manage' as Permission },
+  { label: 'Profile & Settings', path: '/settings', icon: UserCog },
 ];
 
 export function Sidebar() {
   const { user, signOut } = useAuth();
-  const { organization, isAdmin, isPlatformAdmin } = useLocationContext();
+  const { organization, can, isOwnerLike, isPlatformAdmin } = useLocationContext();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -57,7 +59,7 @@ export function Sidebar() {
         ))}
 
         <p className="px-3 pt-5 pb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">Settings</p>
-        {settingsItems.filter((item) => isAdmin || !item.adminOnly).map((item) => (
+        {settingsItems.filter((item) => (item.permission ? can(item.permission) : item.ownerOnly ? isOwnerLike : true)).map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
@@ -72,7 +74,7 @@ export function Sidebar() {
         {isPlatformAdmin && (
           <NavLink to="/admin" className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : 'nav-link-inactive'}`}>
             <ShieldCheck className="w-[18px] h-[18px] shrink-0" />
-            <span>Platform admin</span>
+            <span>Super admin</span>
           </NavLink>
         )}
       </nav>

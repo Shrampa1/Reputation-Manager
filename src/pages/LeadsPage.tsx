@@ -16,6 +16,7 @@ import {
   Users,
 } from 'lucide-react';
 import { useLeads, useLocation } from '@/hooks/useSupabaseData';
+import { useLocationContext } from '@/context/LocationContext';
 import { NewLeadModal } from '@/components/leads/NewLeadModal';
 import { STAGES } from '@/lib/leads';
 import { ReviewRequestModal } from '@/components/reviews/ReviewRequestModal';
@@ -58,6 +59,9 @@ function leadValue(lead: Lead): number {
 export function LeadsPage() {
   const { leads, loading, updateLeadStage, refetch: refetchLeads } = useLeads();
   const { location } = useLocation();
+  const { can } = useLocationContext();
+  const canManage = can('leads.manage');
+  const canRequest = can('reviews.request');
   const [view, setView] = useState<'pipeline' | 'list'>('pipeline');
   const [search, setSearch] = useState('');
   const [newLeadOpen, setNewLeadOpen] = useState(false);
@@ -114,7 +118,7 @@ export function LeadsPage() {
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Leads & CRM</h1>
           <p className="text-sm text-slate-500 mt-1">Track every customer from first contact to review.</p>
         </div>
-        <button className="btn-primary" onClick={() => setNewLeadOpen(true)}>
+        <button className="btn-primary" onClick={() => setNewLeadOpen(true)} disabled={!canManage} title={canManage ? undefined : 'You don’t have access to manage leads'}>
           <Plus className="w-4 h-4" />
           New Lead
         </button>
@@ -183,7 +187,7 @@ export function LeadsPage() {
           <Users className="w-10 h-10 text-slate-300 mx-auto mb-3" />
           <p className="text-base font-semibold text-slate-900">No leads yet</p>
           <p className="text-sm text-slate-500 mt-1">Add customers as they contact you to track quotes, jobs and reviews.</p>
-          <button className="btn-primary mt-4" onClick={() => setNewLeadOpen(true)}>
+          <button className="btn-primary mt-4" onClick={() => setNewLeadOpen(true)} disabled={!canManage}>
             <Plus className="w-4 h-4" />
             Add your first lead
           </button>
@@ -227,7 +231,7 @@ export function LeadsPage() {
                             {movingLead === lead.id && <Loader2 className="w-3.5 h-3.5 text-sky-500 animate-spin shrink-0" />}
                           </button>
 
-                          {lead.stage === 'completed' && lead.email && (
+                          {lead.stage === 'completed' && lead.email && canRequest && (
                             <button
                               type="button"
                               onClick={() => askForReview(lead)}
@@ -251,7 +255,7 @@ export function LeadsPage() {
                               </span>
                               <button
                                 onClick={() => handleMoveLead(lead, 'left')}
-                                disabled={currentIdx === 0 || movingLead === lead.id}
+                                disabled={!canManage || currentIdx === 0 || movingLead === lead.id}
                                 aria-label={`Move ${lead.customer_name} back a stage`}
                                 className="flex items-center justify-center w-6 h-6 rounded text-slate-300 hover:text-slate-600 hover:bg-slate-100 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                               >
@@ -259,7 +263,7 @@ export function LeadsPage() {
                               </button>
                               <button
                                 onClick={() => handleMoveLead(lead, 'right')}
-                                disabled={currentIdx === stageOrder.length - 1 || movingLead === lead.id}
+                                disabled={!canManage || currentIdx === stageOrder.length - 1 || movingLead === lead.id}
                                 aria-label={`Move ${lead.customer_name} forward a stage`}
                                 className="flex items-center justify-center w-6 h-6 rounded text-slate-300 hover:text-slate-600 hover:bg-slate-100 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                               >
@@ -347,7 +351,7 @@ export function LeadsPage() {
         onClose={() => setDetailLead(null)}
         location={location}
         lead={detailLead}
-        onRequestReview={askForReview}
+        onRequestReview={canRequest ? askForReview : undefined}
         onDone={(message) => {
           showToast(message);
           refetchLeads();

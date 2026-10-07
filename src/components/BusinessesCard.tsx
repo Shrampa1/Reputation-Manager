@@ -4,7 +4,7 @@ import { Building2, Check, ChevronRight, CreditCard, Plus, ShieldCheck } from 'l
 import { useLocationContext } from '@/context/LocationContext';
 import { AddBusinessModal } from '@/components/BusinessSwitcher';
 
-const roleLabel = { owner: 'Owner', admin: 'Admin', member: 'Member' } as const;
+const roleLabel = { superadmin: 'Super admin', owner: 'Owner', admin: 'Admin', member: 'Member' } as const;
 
 /** Settings → Your businesses: switch business (also on phones), add one, plan & billing. */
 export function BusinessesCard() {
@@ -55,7 +55,7 @@ export function BusinessesCard() {
         {isPlatformAdmin && (
           <Link to="/admin" className="flex items-center gap-3 p-3 hover:bg-slate-50">
             <ShieldCheck className="w-4 h-4 text-violet-500" />
-            <span className="flex-1 text-sm font-medium text-slate-900">Platform admin</span>
+            <span className="flex-1 text-sm font-medium text-slate-900">Super admin</span>
             <ChevronRight className="w-4 h-4 text-slate-300" />
           </Link>
         )}
