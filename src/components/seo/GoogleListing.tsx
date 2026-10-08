@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { AlertTriangle, Check, ExternalLink, Loader2, MapPin, RefreshCw, Search, Star, Unlink, X } from 'lucide-react';
 import { useLocationContext } from '@/context/LocationContext';
-import { compareField, connectPlace, disconnectGoogle, searchPlaces, syncGoogle, type MatchStatus } from '@/lib/google';
+import { compareField, connectPlace, disconnectGoogle, isPlacesUnavailable, searchPlaces, syncGoogle, usePlacesStatus, type MatchStatus } from '@/lib/google';
 import { relativeTime } from '@/lib/activity';
+import { PlacesPausedNote } from '@/components/seo/PlacesPausedNote';
 import type { Location, PlaceCandidate } from '@/types';
 
 const FIELDS: { key: 'name' | 'address' | 'phone' | 'website'; label: string }[] = [
@@ -102,6 +104,7 @@ export function GoogleListing({ onToast }: { onToast: (msg: string) => void }) {
   const [results, setResults] = useState<PlaceCandidate[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const placesOff = usePlacesStatus() === 'unavailable';
 
   useEffect(() => {
     if (location && !query) {
@@ -120,7 +123,8 @@ export function GoogleListing({ onToast }: { onToast: (msg: string) => void }) {
     try {
       await fn();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
+      // Google being off is shown by the paused note instead of an error
+      if (!isPlacesUnavailable(err)) setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
       setBusy(null);
     }
@@ -128,6 +132,7 @@ export function GoogleListing({ onToast }: { onToast: (msg: string) => void }) {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
+    if (query.trim().length < 3) return setError('Type your business name and city.');
     run('search', async () => setResults(await searchPlaces(query.trim())));
   };
 
@@ -163,7 +168,16 @@ export function GoogleListing({ onToast }: { onToast: (msg: string) => void }) {
             <p className="text-xs text-slate-400">Shows your Google rating, imports your latest Google reviews and checks your details match</p>
           </div>
         </div>
-        {!isAdmin ? (
+        {placesOff ? (
+          <PlacesPausedNote>
+            <p>Connecting a Google listing isn’t available right now. Everything else keeps working.</p>
+            <p>
+              Review requests don’t need it: add your Google review link in{' '}
+              <Link to="/settings#review-requests" className="font-medium text-sky-600 hover:underline">Settings</Link>{' '}
+              and customers will be sent straight to Google.
+            </p>
+          </PlacesPausedNote>
+        ) : !isAdmin ? (
           <p className="text-sm text-slate-500">Ask an owner or admin to connect your Google listing.</p>
         ) : (
           <>
@@ -221,7 +235,9 @@ export function GoogleListing({ onToast }: { onToast: (msg: string) => void }) {
                 <p className="text-sm text-slate-500">No rating yet</p>
               )}
               <p className="text-xs text-slate-400 mt-0.5">
-                {location.google_synced_at ? `Synced ${relativeTime(location.google_synced_at)} · refreshes daily` : 'Not synced yet'}
+                {location.google_synced_at
+                  ? `Synced ${relativeTime(location.google_synced_at)}${placesOff ? '' : ' · refreshes daily'}`
+                  : 'Not synced yet'}
                 {g?.business_status && g.business_status !== 'OPERATIONAL' && (
                   <span className="text-rose-600 font-medium"> · Google shows this business as {g.business_status.toLowerCase().replace(/_/g, ' ')}</span>
                 )}
@@ -234,9 +250,11 @@ export function GoogleListing({ onToast }: { onToast: (msg: string) => void }) {
                 View on Google Maps <ExternalLink className="w-3.5 h-3.5" />
               </a>
             )}
-            <button onClick={handleSync} disabled={busy !== null} className="btn-secondary text-xs">
-              {busy === 'sync' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />} Sync now
-            </button>
+            {!placesOff && (
+              <button onClick={handleSync} disabled={busy !== null} className="btn-secondary text-xs">
+                {busy === 'sync' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />} Sync now
+              </button>
+            )}
             {isAdmin && (
               <button onClick={handleDisconnect} disabled={busy !== null} className="btn-ghost text-xs text-slate-500" title="Disconnect Google listing">
                 {busy === 'disconnect' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Unlink className="w-3.5 h-3.5" />}
@@ -244,7 +262,13 @@ export function GoogleListing({ onToast }: { onToast: (msg: string) => void }) {
             )}
           </div>
         </div>
-        {location.google_sync_error && (
+        {placesOff ? (
+          <div className="mt-3">
+            <PlacesPausedNote>
+              <p>Syncing with Google is paused for now. You’re seeing the details from the last sync.</p>
+            </PlacesPausedNote>
+          </div>
+        ) : location.google_sync_error && (
           <p className="text-sm text-rose-600 mt-3 flex items-start gap-1.5"><AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />Last sync failed: {location.google_sync_error}</p>
         )}
         {error && <p className="text-sm text-rose-600 mt-3" role="alert">{error}</p>}

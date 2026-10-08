@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { AlertTriangle, ExternalLink, Loader2, Plus, RefreshCw, Search, Swords, Trash2, TrendingDown } from 'lucide-react';
 import { useLocationContext } from '@/context/LocationContext';
-import { searchPlaces } from '@/lib/google';
+import { isPlacesUnavailable, searchPlaces, usePlacesStatus } from '@/lib/google';
+import { PlacesPausedNote } from '@/components/seo/PlacesPausedNote';
 import { useWebsiteAudits } from '@/lib/websiteAudit';
 import { relativeTime } from '@/lib/activity';
 import { addCompetitor, refreshCompetitor, removeCompetitor, summarizeOwnAudit, useCompetitors, type WebsiteSummary } from '@/lib/competitors';
@@ -25,6 +26,7 @@ interface Row {
   format?: (v: number | string | boolean) => string;
   better: Better;
   storeOnly?: boolean;
+  google?: boolean;
 }
 
 // null (shown as —) when the check didn't apply, e.g. product checks on a non-store site
@@ -32,8 +34,8 @@ const pass = (id: string) => (c: Column) => (c.site?.checks[id] ? c.site.checks[
 const cwvRank: Record<string, number> = { FAST: 3, AVERAGE: 2, SLOW: 1 };
 
 const ROWS: Row[] = [
-  { label: 'Google rating', value: (c) => c.rating, format: (v) => `${Number(v).toFixed(1)}★`, better: 'higher' },
-  { label: 'Google reviews', value: (c) => c.reviews, format: (v) => Number(v).toLocaleString(), better: 'higher' },
+  { label: 'Google rating', value: (c) => c.rating, format: (v) => `${Number(v).toFixed(1)}★`, better: 'higher', google: true },
+  { label: 'Google reviews', value: (c) => c.reviews, format: (v) => Number(v).toLocaleString(), better: 'higher', google: true },
   { label: 'Site health', value: (c) => c.site?.overall_score ?? null, format: (v) => `${v}/100`, better: 'higher' },
   { label: 'SEO checks', value: (c) => c.site?.scores.seo_checks ?? null, better: 'higher' },
   { label: 'Mobile speed', value: (c) => c.site?.scores.performance_mobile ?? null, better: 'higher' },
@@ -84,6 +86,7 @@ export function Competitors() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const placesOff = usePlacesStatus() === 'unavailable';
 
   const columns: Column[] = useMemo(() => {
     const you: Column = {
@@ -110,7 +113,9 @@ export function Competitors() {
   }, [location, audits, competitors]);
 
   const anyStore = columns.some((c) => c.site?.is_ecommerce);
-  const rows = ROWS.filter((r) => !r.storeOnly || anyStore);
+  // Without Google data, rating/review rows would be all dashes
+  const anyGoogle = columns.some((c) => c.rating !== null || c.reviews !== null);
+  const rows = ROWS.filter((r) => (!r.storeOnly || anyStore) && (!r.google || anyGoogle));
 
   // Plain-English gaps where a competitor is ahead
   const insights = useMemo(() => {
@@ -147,7 +152,8 @@ export function Competitors() {
     try {
       await fn();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
+      // Google being off is shown by the paused note instead of an error
+      if (!isPlacesUnavailable(err)) setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
       setBusy(null);
     }
@@ -180,22 +186,31 @@ export function Competitors() {
             <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-violet-50 text-violet-600"><Swords className="w-4 h-4" /></div>
             <div>
               <h2 className="text-base font-bold text-slate-900">Add a competitor</h2>
-              <p className="text-xs text-slate-400">Find them on Google (rating, reviews and website), or just enter their website. Up to 5.</p>
+              <p className="text-xs text-slate-400">
+                {placesOff
+                  ? 'Enter their website to compare speed, SEO and site health. Up to 5.'
+                  : 'Find them on Google (rating, reviews and website), or just enter their website. Up to 5.'}
+              </p>
             </div>
           </div>
           {full ? (
             <p className="text-sm text-slate-500">You’re tracking 5 competitors. Remove one to add another.</p>
           ) : (
             <div className="space-y-3">
-              <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-2" noValidate>
+              {placesOff && (
+                <PlacesPausedNote>
+                  <p>Google ratings and reviews for competitors aren’t available right now. Website comparisons work as normal.</p>
+                </PlacesPausedNote>
+              )}
+              {!placesOff && <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-2" noValidate>
                 <label htmlFor="comp-query" className="sr-only">Competitor name and city</label>
                 <input id="comp-query" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. Best Plumbing Austin" className="input-field flex-1" />
                 <button type="submit" disabled={busy !== null} className="btn-secondary shrink-0">
                   {busy === 'search' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />} Find on Google
                 </button>
-              </form>
-              {results && results.length === 0 && <p className="text-sm text-slate-500">No matches on Google.</p>}
-              {results && results.length > 0 && (
+              </form>}
+              {!placesOff && results && results.length === 0 && <p className="text-sm text-slate-500">No matches on Google.</p>}
+              {!placesOff && results && results.length > 0 && (
                 <ul className="divide-y divide-slate-100 rounded-xl border border-slate-100">
                   {results.filter((p) => p.id !== location.gbp_place_id).map((p) => (
                     <li key={p.id} className="flex items-center gap-3 p-3">
@@ -220,12 +235,23 @@ export function Competitors() {
                 noValidate
               >
                 <label htmlFor="comp-website" className="sr-only">Competitor website</label>
-                <input id="comp-website" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="…or their website, e.g. competitor.com" className="input-field flex-1" inputMode="url" />
+                <input
+                  id="comp-website"
+                  value={website}
+                  onChange={(e) => setWebsite(e.target.value)}
+                  placeholder={placesOff ? 'Their website, e.g. competitor.com' : '…or their website, e.g. competitor.com'}
+                  className="input-field flex-1"
+                  inputMode="url"
+                />
                 <button type="submit" disabled={busy !== null} className="btn-secondary shrink-0">
                   {busy === 'website' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Add website
                 </button>
               </form>
-              {busy && busy !== 'search' && <p className="text-xs text-slate-500" role="status">Checking their Google listing and website… this takes up to a minute.</p>}
+              {busy && busy !== 'search' && (
+                <p className="text-xs text-slate-500" role="status">
+                  {busy === 'website' ? 'Checking their website' : 'Checking their Google listing and website'}… this takes up to a minute.
+                </p>
+              )}
             </div>
           )}
           {error && <p className="text-sm text-rose-600 mt-3" role="alert">{error}</p>}
@@ -239,7 +265,9 @@ export function Competitors() {
         <div className="card p-8 text-center">
           <Swords className="w-10 h-10 text-slate-300 mx-auto mb-3" />
           <p className="text-base font-semibold text-slate-900">No competitors yet</p>
-          <p className="text-sm text-slate-500 mt-1">Add the businesses you compete with to see how your reviews, rating and website stack up.</p>
+          <p className="text-sm text-slate-500 mt-1">
+            Add the businesses you compete with to see how {placesOff ? 'your website stacks' : 'your reviews, rating and website stack'} up.
+          </p>
         </div>
       ) : (
         <>
@@ -271,7 +299,13 @@ export function Competitors() {
                               <a href={comp.google_maps_url} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-slate-600" title="Google Maps"><ExternalLink className="w-3.5 h-3.5" /></a>
                             )}
                             <button
-                              onClick={() => run(`r-${comp.id}`, async () => upsertLocal((await refreshCompetitor(comp.id)).competitor))}
+                              onClick={() =>
+                                run(`r-${comp.id}`, async () => {
+                                  const { competitor, warning } = await refreshCompetitor(comp.id);
+                                  upsertLocal(competitor);
+                                  if (warning) setNotice(warning);
+                                })
+                              }
                               disabled={busy !== null}
                               className="text-slate-400 hover:text-slate-600"
                               title={comp.refreshed_at ? `Refreshed ${relativeTime(comp.refreshed_at)}` : 'Refresh'}

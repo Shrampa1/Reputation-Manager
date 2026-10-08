@@ -69,7 +69,8 @@ export function useCompetitors() {
 export const addCompetitor = (input: { name?: string; website?: string; placeId?: string }) =>
   callFunction<{ competitor: Competitor; warning?: string }>('competitors', { action: 'add', ...input });
 
-export const refreshCompetitor = (id: string) => callFunction<{ competitor: Competitor }>('competitors', { action: 'refresh', id });
+export const refreshCompetitor = (id: string) =>
+  callFunction<{ competitor: Competitor; warning?: string }>('competitors', { action: 'refresh', id });
 
 export async function removeCompetitor(id: string) {
   const { error } = await supabase.from('competitors').delete().eq('id', id);
