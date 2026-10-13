@@ -22,7 +22,7 @@ export interface Review {
 }
 
 // Review requests — written by the send-review-request / review-landing edge functions
-export type ReviewRequestStatus = 'sending' | 'sent' | 'failed';
+export type ReviewRequestStatus = 'scheduled' | 'sending' | 'sent' | 'failed' | 'cancelled';
 
 export interface ReviewRequest {
   id: string;
@@ -42,6 +42,10 @@ export interface ReviewRequest {
   responded_at: string | null;
   clicked_review_at: string | null;
   sent_by: string | null;
+  /** Who created it: the app, a connected app through the API, or Square */
+  source?: 'app' | 'api' | 'square';
+  /** When a scheduled request will be emailed */
+  scheduled_for?: string | null;
   created_at: string;
 }
 

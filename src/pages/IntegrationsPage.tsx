@@ -22,6 +22,7 @@ import {
   type ProviderInfo,
 } from '@/lib/integrations';
 import { Modal } from '@/components/ui/Modal';
+import { ApiWebhooksSection } from '@/components/integrations/ApiWebhooksSection';
 import type { Integration, IntegrationProvider } from '@/types';
 
 type Banner = { kind: 'success' | 'error' | 'info'; text: string } | null;
@@ -162,6 +163,8 @@ export function IntegrationsPage() {
           ))}
         </div>
       )}
+
+      <ApiWebhooksSection />
 
       <TwilioModal
         isOpen={twilioOpen}

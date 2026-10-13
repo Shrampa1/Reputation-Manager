@@ -5,7 +5,7 @@ import { useLocationContext } from '@/context/LocationContext';
 import type { ReviewRequest } from '@/types';
 
 export const REVIEW_REQUEST_COLUMNS =
-  'id, location_id, lead_id, customer_name, email, channel, status, error, shield, rating, feedback, responded_at, clicked_review_at, sent_by, created_at';
+  'id, location_id, lead_id, customer_name, email, channel, status, error, shield, rating, feedback, responded_at, clicked_review_at, sent_by, source, scheduled_for, created_at';
 
 export async function sendReviewRequest(input: {
   name: string;
@@ -59,8 +59,19 @@ export function useReviewRequests(limit = 100) {
 }
 
 /** Short human description of where a request stands. */
+/** Cancels a request that is scheduled for later (e.g. created by a connected app). */
+export async function cancelScheduledRequest(id: string): Promise<{ error: string | null }> {
+  const { error } = await supabase.rpc('cancel_review_request', { p_id: id });
+  return { error: error?.message ?? null };
+}
+
 export function requestOutcome(r: ReviewRequest): { label: string; tone: 'slate' | 'sky' | 'emerald' | 'amber' | 'rose' } {
   if (r.status === 'failed') return { label: 'Failed to send', tone: 'rose' };
+  if (r.status === 'cancelled') return { label: 'Cancelled', tone: 'slate' };
+  if (r.status === 'scheduled') {
+    const when = r.scheduled_for ? new Date(r.scheduled_for).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'later';
+    return { label: `Scheduled · ${when}`, tone: 'slate' };
+  }
   if (r.status === 'sending') return { label: 'Sending…', tone: 'slate' };
   if (r.rating === null) return { label: 'Sent · no response yet', tone: 'sky' };
   if (r.clicked_review_at) return { label: `Rated ${r.rating}★ · opened review page`, tone: 'emerald' };

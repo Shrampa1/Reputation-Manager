@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { AlertCircle, Inbox as InboxIcon, Loader2, Lock, Mail, QrCode } from 'lucide-react';
-import { requestOutcome } from '@/lib/reviewRequests';
+import { cancelScheduledRequest, requestOutcome } from '@/lib/reviewRequests';
+import { useLocationContext } from '@/context/LocationContext';
 import { relativeTime } from '@/lib/activity';
 import type { ReviewRequest } from '@/types';
 
@@ -24,6 +25,18 @@ export function ReviewRequestsPanel({
   error: string | null;
 }) {
   const [filter, setFilter] = useState<Filter>('all');
+  const { can } = useLocationContext();
+  const [cancelling, setCancelling] = useState<string | null>(null);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+
+  // The list refreshes itself through the realtime subscription once the status changes
+  const cancel = async (id: string) => {
+    setCancelling(id);
+    setCancelError(null);
+    const { error: err } = await cancelScheduledRequest(id);
+    if (err) setCancelError(err);
+    setCancelling(null);
+  };
 
   // QR-code visitors only appear once they've rated, so they'd skew the response rate
   const sent = requests.filter((r) => r.status === 'sent' && r.channel !== 'qr');
@@ -49,10 +62,10 @@ export function ReviewRequestsPanel({
 
   return (
     <div className="space-y-3">
-      {error && (
+      {(error || cancelError) && (
         <div className="p-3 rounded-xl bg-rose-50 border border-rose-100 text-sm text-rose-600 flex items-start gap-2" role="alert">
           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-          {error}
+          {error ?? cancelError}
         </div>
       )}
 
@@ -114,7 +127,18 @@ export function ReviewRequestsPanel({
                     </div>
                     <p className="text-xs text-slate-400 mt-0.5 truncate">
                       {r.email ?? 'Scanned your QR code'} · {relativeTime(r.created_at)}
+                      {r.source === 'api' && ' · via a connected app'}
+                      {r.source === 'square' && ' · from Square'}
                     </p>
+                    {r.status === 'scheduled' && can('reviews.request') && (
+                      <button
+                        onClick={() => cancel(r.id)}
+                        disabled={cancelling !== null}
+                        className="mt-1 text-xs font-medium text-slate-500 hover:text-rose-600 disabled:opacity-50"
+                      >
+                        {cancelling === r.id ? 'Cancelling…' : 'Cancel this request'}
+                      </button>
+                    )}
                     {r.status === 'failed' && r.error && <p className="text-xs text-rose-600 mt-1">{r.error}</p>}
                     {r.feedback && (
                       <div className="mt-2 p-3 rounded-xl bg-amber-50/60 border border-amber-100">
