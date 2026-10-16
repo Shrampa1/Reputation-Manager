@@ -1,4 +1,6 @@
-import { Facebook, Instagram, MessageSquare, MapPin, Search, type LucideIcon } from 'lucide-react';
+import type { ComponentType } from 'react';
+import { Facebook, Instagram, Megaphone, MessageSquare, MapPin, Search } from 'lucide-react';
+import { TikTokIcon } from '@/components/ui/TikTokIcon';
 import { supabase } from '@/lib/supabase';
 import { callFunction } from '@/lib/functions';
 import type { IntegrationProvider, PostPlatform } from '@/types';
@@ -8,7 +10,7 @@ export interface ProviderInfo {
   name: string;
   description: string;
   usedFor: string[];
-  icon: LucideIcon;
+  icon: ComponentType<{ className?: string }>;
   iconClass: string;
   connectMethod: 'oauth' | 'twilio';
   connectLabel: string;
@@ -49,6 +51,28 @@ export const PROVIDERS: ProviderInfo[] = [
     setupNote: 'Needs an Instagram Business or Creator account linked to your Facebook Page.',
   },
   {
+    provider: 'tiktok',
+    name: 'TikTok',
+    description: 'Post videos to your TikTok account, now or on a schedule.',
+    usedFor: ['Social posts'],
+    icon: TikTokIcon,
+    iconClass: 'bg-slate-900 text-white',
+    connectMethod: 'oauth',
+    connectLabel: 'Connect TikTok',
+    setupNote: 'Until TikTok approves the app, videos are posted as private ("Only me").',
+  },
+  {
+    provider: 'meta_ads',
+    name: 'Meta Ads',
+    description: 'See Facebook and Instagram ad results, pause or resume campaigns, change budgets and boost posts.',
+    usedFor: ['Ads'],
+    icon: Megaphone,
+    iconClass: 'bg-indigo-50 text-indigo-600',
+    connectMethod: 'oauth',
+    connectLabel: 'Connect Meta Ads',
+    setupNote: 'Pro and Agency plans. Needs a Meta ad account with a payment method.',
+  },
+  {
     provider: 'search_console',
     name: 'Google Search Console',
     description: 'See which pages Google has indexed, the searches you appear for, clicks and rankings.',
@@ -75,6 +99,7 @@ export const PLATFORM_PROVIDER: Record<PostPlatform, IntegrationProvider> = {
   facebook: 'facebook',
   instagram: 'instagram',
   google: 'google_business',
+  tiktok: 'tiktok',
 };
 
 export function providerName(provider: IntegrationProvider): string {

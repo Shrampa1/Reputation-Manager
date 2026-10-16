@@ -21,17 +21,20 @@ import { StarRating } from '@/components/ui/StarRating';
 import { NewPostModal } from '@/components/social/NewPostModal';
 import { ContentPlanner } from '@/components/social/ContentPlanner';
 import { ReviewGraphicModal } from '@/components/social/ReviewGraphicModal';
+import { TikTokIcon } from '@/components/ui/TikTokIcon';
 
-const platformIconMap: Record<string, typeof Facebook> = {
+const platformIconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   facebook: Facebook,
   google: Globe,
   instagram: Instagram,
+  tiktok: TikTokIcon,
 };
 
 const platformColorMap: Record<string, string> = {
   facebook: 'bg-blue-50 text-blue-600',
   google: 'bg-red-50 text-red-600',
   instagram: 'bg-pink-50 text-pink-600',
+  tiktok: 'bg-slate-900 text-white',
 };
 
 const statusConfig: Record<PostStatus, { label: string; color: string }> = {
@@ -90,7 +93,8 @@ export function SocialPage() {
 
   const showToast = (msg: string) => {
     setToast(msg);
-    setTimeout(() => setToast(null), 2500);
+    // Longer messages (e.g. TikTok processing) stay up long enough to read
+    setTimeout(() => setToast(null), Math.max(2500, msg.length * 60));
   };
 
   const openComposer = (content = '', platforms?: PostPlatform[], scheduleAt: Date | null = null, image: File | null = null) => {
@@ -343,8 +347,13 @@ export function SocialPage() {
                           </span>
                         </div>
                         <p className="text-sm text-slate-600 leading-relaxed">{post.content}</p>
-                        {post.media_url && (
+                        {post.media_url && post.media_type === 'video' ? (
+                          <video src={post.media_url} muted preload="metadata" className="mt-2 h-20 w-auto rounded-lg border border-slate-100 bg-slate-900" />
+                        ) : post.media_url ? (
                           <img src={post.media_url} alt="" className="mt-2 h-20 w-auto rounded-lg border border-slate-100 object-cover" />
+                        ) : null}
+                        {post.status === 'publishing' && post.platform === 'tiktok' && (
+                          <p className="mt-2 text-xs text-amber-700">TikTok is processing the video. This usually takes a few minutes.</p>
                         )}
                         {post.status === 'failed' && post.last_error && (
                           <p className="flex items-start gap-1.5 mt-2 text-xs text-rose-600">

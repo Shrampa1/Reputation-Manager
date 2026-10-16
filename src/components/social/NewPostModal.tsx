@@ -17,17 +17,21 @@ import {
 import { Modal } from '@/components/ui/Modal';
 import { supabase } from '@/lib/supabase';
 import { callFunction } from '@/lib/functions';
-import { uploadPostImage } from '@/lib/media';
+import { checkVideoFile, isVideoFile, uploadPostImage, uploadPostVideo, videoDuration } from '@/lib/media';
 import { PLATFORM_PROVIDER } from '@/lib/integrations';
 import { useLocationContext } from '@/context/LocationContext';
+import { TikTokIcon } from '@/components/ui/TikTokIcon';
+import { TikTokSettings } from '@/components/social/TikTokSettings';
+import { tiktokProblem, type TikTokCreatorInfo, type TikTokOptions } from '@/lib/tiktok';
 import type { Integration, IntegrationProvider, Location, PostPlatform, SocialPost } from '@/types';
 
 type PublishMode = 'draft' | 'schedule' | 'now';
+type MediaKind = 'image' | 'video';
 
 const PLATFORMS: {
   key: PostPlatform;
   label: string;
-  icon: typeof Facebook;
+  icon: React.ComponentType<{ className?: string }>;
   activeClass: string;
   maxLength: number;
   requiresImage: boolean;
@@ -35,6 +39,7 @@ const PLATFORMS: {
   { key: 'facebook', label: 'Facebook', icon: Facebook, activeClass: 'border-blue-400 bg-blue-50 text-blue-700', maxLength: 63206, requiresImage: false },
   { key: 'instagram', label: 'Instagram', icon: Instagram, activeClass: 'border-pink-400 bg-pink-50 text-pink-700', maxLength: 2200, requiresImage: true },
   { key: 'google', label: 'Google', icon: Globe, activeClass: 'border-red-400 bg-red-50 text-red-700', maxLength: 1500, requiresImage: false },
+  { key: 'tiktok', label: 'TikTok', icon: TikTokIcon, activeClass: 'border-slate-800 bg-slate-100 text-slate-900', maxLength: 2200, requiresImage: false },
 ];
 
 const MIN_SCHEDULE_LEAD_MS = 2 * 60_000;
@@ -91,6 +96,10 @@ export function NewPostModal({
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [existingMediaUrl, setExistingMediaUrl] = useState<string | null>(null);
+  const [mediaKind, setMediaKind] = useState<MediaKind | null>(null);
+  const [duration, setDuration] = useState<number | null>(null);
+  const [tiktokOptions, setTiktokOptions] = useState<TikTokOptions>({});
+  const [tiktokInfo, setTiktokInfo] = useState<TikTokCreatorInfo | null>(null);
   const [mode, setMode] = useState<PublishMode>('draft');
   const [scheduleAt, setScheduleAt] = useState(defaultScheduleTime());
   const [submitting, setSubmitting] = useState(false);
@@ -106,11 +115,16 @@ export function NewPostModal({
     setImageFile(null);
     setSubmitting(false);
     setDeleting(false);
+    setDuration(null);
+    setTiktokInfo(null);
     if (post) {
       setPlatforms([post.platform]);
       setContent(post.content);
       setExistingMediaUrl(post.media_url);
       setImagePreview(post.media_url);
+      setMediaKind(post.media_url ? (post.media_type === 'video' ? 'video' : 'image') : null);
+      setTiktokOptions(post.platform === 'tiktok' ? ((post.options ?? {}) as TikTokOptions) : {});
+      if (post.media_url && post.media_type === 'video') videoDuration(post.media_url).then(setDuration);
       if (post.status === 'scheduled' && post.scheduled_for) {
         setMode('schedule');
         setScheduleAt(toLocalInput(new Date(post.scheduled_for)));
@@ -125,6 +139,8 @@ export function NewPostModal({
       setExistingMediaUrl(null);
       setImageFile(initialImage ?? null);
       setImagePreview(initialImage ? URL.createObjectURL(initialImage) : null);
+      setMediaKind(initialImage ? 'image' : null);
+      setTiktokOptions({});
       if (initialScheduleAt && initialScheduleAt.getTime() > Date.now() + MIN_SCHEDULE_LEAD_MS) {
         setMode('schedule');
         setScheduleAt(toLocalInput(initialScheduleAt));
@@ -145,18 +161,30 @@ export function NewPostModal({
 
   const selected = PLATFORMS.filter((p) => platforms.includes(p.key));
   const maxLength = selected.length > 0 ? Math.min(...selected.map((p) => p.maxLength)) : 63206;
-  const hasImage = Boolean(imageFile || existingMediaUrl);
+  const hasMedia = Boolean(imageFile || existingMediaUrl);
+  const hasImage = hasMedia && mediaKind === 'image';
+  const hasVideo = hasMedia && mediaKind === 'video';
+  const tiktokSelected = platforms.includes('tiktok');
   const disconnectedSelected = selected.filter((p) => !isConnected(p.key));
 
   const validationError = useMemo(() => {
     if (platforms.length === 0) return 'Choose at least one platform.';
     if (!content.trim()) return 'Write something to post.';
     if (content.length > maxLength) return `Too long for ${selected.find((p) => content.length > p.maxLength)?.label} (max ${maxLength.toLocaleString()} characters).`;
+    if (hasVideo) {
+      const others = selected.filter((p) => p.key !== 'tiktok');
+      if (others.length > 0) return `Videos can only be posted to TikTok for now. Unselect ${others.map((p) => p.label).join(' and ')}, or use an image.`;
+    }
     if (mode !== 'draft') {
       const needImage = selected.find((p) => p.requiresImage && !hasImage);
       if (needImage) return `${needImage.label} posts need an image.`;
+      if (tiktokSelected && !hasVideo) return 'TikTok posts need a video.';
       if (disconnectedSelected.length > 0) {
         return `Connect ${disconnectedSelected.map((p) => p.label).join(' and ')} before ${mode === 'now' ? 'publishing' : 'scheduling'}, or save as a draft.`;
+      }
+      if (tiktokSelected) {
+        const problem = tiktokProblem(tiktokOptions, tiktokInfo, duration);
+        if (problem) return problem;
       }
     }
     if (mode === 'schedule') {
@@ -165,7 +193,7 @@ export function NewPostModal({
       if (when < Date.now() + MIN_SCHEDULE_LEAD_MS) return 'Schedule at least a few minutes in the future.';
     }
     return null;
-  }, [platforms, content, maxLength, selected, mode, hasImage, disconnectedSelected, scheduleAt]);
+  }, [platforms, content, maxLength, selected, mode, hasImage, hasVideo, tiktokSelected, disconnectedSelected, scheduleAt, tiktokOptions, tiktokInfo, duration]);
 
   const togglePlatform = (p: PostPlatform) => {
     if (isEdit) return;
@@ -174,20 +202,34 @@ export function NewPostModal({
 
   const handleFile = (file: File | undefined) => {
     if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      setError('Please choose an image file (JPEG, PNG or WebP).');
+    const video = isVideoFile(file);
+    if (!video && !file.type.startsWith('image/')) {
+      setError('Please choose an image (JPEG, PNG or WebP) or, for TikTok, a video (MP4, MOV or WebM).');
       return;
+    }
+    if (video) {
+      const problem = checkVideoFile(file);
+      if (problem) {
+        setError(problem);
+        return;
+      }
     }
     setError(null);
     setImageFile(file);
     setExistingMediaUrl(null);
-    setImagePreview(URL.createObjectURL(file));
+    setMediaKind(video ? 'video' : 'image');
+    const url = URL.createObjectURL(file);
+    setImagePreview(url);
+    setDuration(null);
+    if (video) videoDuration(url).then(setDuration);
   };
 
   const removeImage = () => {
     setImageFile(null);
     setExistingMediaUrl(null);
     setImagePreview(null);
+    setMediaKind(null);
+    setDuration(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -201,24 +243,33 @@ export function NewPostModal({
 
     try {
       let mediaUrl = existingMediaUrl;
-      if (imageFile) mediaUrl = await uploadPostImage(location.organization_id, imageFile);
+      if (imageFile) {
+        mediaUrl = mediaKind === 'video'
+          ? await uploadPostVideo(location.organization_id, imageFile)
+          : await uploadPostImage(location.organization_id, imageFile);
+      }
 
       const fields = {
         content: content.trim(),
         media_url: mediaUrl,
+        media_type: mediaUrl ? mediaKind : null,
         status: mode === 'schedule' ? 'scheduled' : 'draft',
         scheduled_for: mode === 'schedule' ? new Date(scheduleAt).toISOString() : null,
       } as const;
+      const optionsFor = (platform: PostPlatform) => (platform === 'tiktok' ? tiktokOptions : {});
 
       let ids: string[];
       if (post) {
-        const { error: updateError } = await supabase.from('social_posts').update(fields).eq('id', post.id);
+        const { error: updateError } = await supabase
+          .from('social_posts')
+          .update({ ...fields, options: optionsFor(post.platform) })
+          .eq('id', post.id);
         if (updateError) throw new Error(updateError.message);
         ids = [post.id];
       } else {
         const { data, error: insertError } = await supabase
           .from('social_posts')
-          .insert(platforms.map((platform) => ({ ...fields, platform, location_id: location.id })))
+          .insert(platforms.map((platform) => ({ ...fields, platform, options: optionsFor(platform), location_id: location.id })))
           .select('id');
         if (insertError) throw new Error(insertError.message);
         ids = (data ?? []).map((r) => r.id as string);
@@ -236,10 +287,17 @@ export function NewPostModal({
       }
 
       // Publish now: one call per platform post
-      const results = await Promise.allSettled(ids.map((postId) => callFunction('publish-post', { postId })));
+      const results = await Promise.allSettled(
+        ids.map((postId) => callFunction<{ status: string }>('publish-post', { postId })),
+      );
       const failed = results.filter((r) => r.status === 'rejected') as PromiseRejectedResult[];
+      const processing = results.some((r) => r.status === 'fulfilled' && r.value?.status === 'processing');
       if (failed.length === 0) {
-        onSaved(ids.length > 1 ? `Published to ${ids.length} platforms` : 'Post published');
+        onSaved(
+          processing
+            ? 'Sent to TikTok. TikTok is processing the video, and the post shows as published once it’s live (usually a few minutes).'
+            : ids.length > 1 ? `Published to ${ids.length} platforms` : 'Post published',
+        );
         onClose();
       } else if (failed.length < results.length) {
         onSaved(`Published to ${results.length - failed.length} of ${results.length} platforms. Failed posts are marked in the list.`);
@@ -349,17 +407,28 @@ export function NewPostModal({
           />
         </div>
 
-        {/* Image */}
+        {/* Image or video */}
         <div>
           <p className="text-sm font-semibold text-slate-900 mb-2">
-            Image{' '}
+            {tiktokSelected ? 'Image or video' : 'Image'}{' '}
             <span className="font-normal text-slate-400">
-              {platforms.includes('instagram') ? '(required for Instagram)' : '(optional)'}
+              {tiktokSelected && platforms.length === 1
+                ? '(video required for TikTok)'
+                : platforms.includes('instagram') ? '(required for Instagram)' : '(optional)'}
             </span>
           </p>
           {imagePreview ? (
             <div className="relative inline-block">
-              <img src={imagePreview} alt="Post attachment preview" className="h-40 w-auto max-w-full rounded-xl border border-slate-200 object-cover" />
+              {mediaKind === 'video' ? (
+                <video src={imagePreview} controls muted playsInline className="h-48 w-auto max-w-full rounded-xl border border-slate-200 bg-slate-900" />
+              ) : (
+                <img src={imagePreview} alt="Post attachment preview" className="h-40 w-auto max-w-full rounded-xl border border-slate-200 object-cover" />
+              )}
+              {mediaKind === 'video' && duration !== null && (
+                <span className="absolute bottom-2 left-2 px-1.5 py-0.5 rounded bg-slate-900/70 text-white text-[11px] tabular-nums">
+                  {Math.floor(duration / 60)}:{String(Math.round(duration % 60)).padStart(2, '0')}
+                </span>
+              )}
               <button
                 type="button"
                 onClick={removeImage}
@@ -381,18 +450,34 @@ export function NewPostModal({
               className="w-full flex flex-col items-center justify-center gap-1.5 py-6 rounded-xl border-2 border-dashed border-slate-200 text-slate-500 hover:border-sky-300 hover:bg-sky-50/30 transition-all"
             >
               <ImagePlus className="w-6 h-6 text-slate-400" />
-              <span className="text-sm font-medium">Add an image</span>
-              <span className="text-xs text-slate-400">JPEG, PNG or WebP — resized and converted to JPEG</span>
+              <span className="text-sm font-medium">{tiktokSelected ? 'Add an image or video' : 'Add an image'}</span>
+              <span className="text-xs text-slate-400">
+                {tiktokSelected
+                  ? 'Images: JPEG, PNG or WebP. Videos for TikTok: MP4, MOV or WebM up to 50 MB'
+                  : 'JPEG, PNG or WebP — resized and converted to JPEG'}
+              </span>
             </button>
           )}
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/jpeg,image/png,image/webp"
+            accept={tiktokSelected ? 'image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm' : 'image/jpeg,image/png,image/webp'}
             className="hidden"
             onChange={(e) => handleFile(e.target.files?.[0])}
           />
         </div>
+
+        {tiktokSelected && (
+          <div>
+            <p className="text-sm font-semibold text-slate-900 mb-2">TikTok settings</p>
+            <TikTokSettings
+              connected={isConnected('tiktok')}
+              options={tiktokOptions}
+              onChange={setTiktokOptions}
+              onInfo={setTiktokInfo}
+            />
+          </div>
+        )}
 
         {/* When */}
         <div>

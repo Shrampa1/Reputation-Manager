@@ -69,13 +69,28 @@ export interface Lead {
 
 // Social Posts — DB enum: post_status (draft, scheduled, publishing, published, failed)
 export type PostStatus = 'draft' | 'scheduled' | 'publishing' | 'published' | 'failed';
-export type PostPlatform = 'facebook' | 'instagram' | 'google';
+export type PostPlatform = 'facebook' | 'instagram' | 'google' | 'tiktok';
+
+/** TikTok settings the person picks for each post (TikTok requires them; no defaults) */
+export interface TikTokPostOptions {
+  privacy_level?: 'PUBLIC_TO_EVERYONE' | 'MUTUAL_FOLLOW_FRIENDS' | 'FOLLOWER_OF_CREATOR' | 'SELF_ONLY';
+  allow_comment?: boolean;
+  allow_duet?: boolean;
+  allow_stitch?: boolean;
+  /** Promoting the business's own brand */
+  brand_organic?: boolean;
+  /** Paid partnership with another brand */
+  branded_content?: boolean;
+}
 
 export interface SocialPost {
   id: string;
   location_id: string;
   content: string;
   media_url: string | null;
+  /** 'video' only for TikTok; null when there's no media */
+  media_type?: 'image' | 'video' | null;
+  options?: TikTokPostOptions | Record<string, never>;
   platform: PostPlatform;
   scheduled_for: string | null;
   status: PostStatus;
@@ -88,7 +103,17 @@ export interface SocialPost {
 }
 
 // Integrations — DB enums: integration_provider, integration_status
-export type IntegrationProvider = 'google_business' | 'facebook' | 'instagram' | 'twilio' | 'search_console';
+export type IntegrationProvider =
+  | 'google_business'
+  | 'facebook'
+  | 'instagram'
+  | 'twilio'
+  | 'search_console'
+  | 'meta_ads'
+  | 'tiktok'
+  | 'tiktok_ads'
+  | 'tiktok_shop'
+  | 'multistore';
 export type IntegrationStatus = 'connected' | 'error' | 'disconnected';
 
 export interface Integration {
@@ -109,7 +134,7 @@ export type MemberRole = 'owner' | 'admin' | 'member';
 export type ViewerRole = MemberRole | 'superadmin';
 
 // Activity log — written by database triggers, readable by owners/admins
-export type ActivityCategory = 'business' | 'team' | 'integrations' | 'posts' | 'leads' | 'reviews';
+export type ActivityCategory = 'business' | 'team' | 'integrations' | 'posts' | 'leads' | 'reviews' | 'ads' | 'shop';
 
 export interface ActivityEntry {
   id: string;
