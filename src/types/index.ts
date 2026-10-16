@@ -43,7 +43,7 @@ export interface ReviewRequest {
   clicked_review_at: string | null;
   sent_by: string | null;
   /** Who created it: the app, a connected app through the API, or Square */
-  source?: 'app' | 'api' | 'square';
+  source?: 'app' | 'api' | 'square' | 'multistore';
   /** When a scheduled request will be emailed */
   scheduled_for?: string | null;
   created_at: string;

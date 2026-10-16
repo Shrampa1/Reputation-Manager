@@ -129,6 +129,7 @@ export function ReviewRequestsPanel({
                       {r.email ?? 'Scanned your QR code'} · {relativeTime(r.created_at)}
                       {r.source === 'api' && ' · via a connected app'}
                       {r.source === 'square' && ' · from Square'}
+                      {r.source === 'multistore' && ' · from your online store'}
                     </p>
                     {r.status === 'scheduled' && can('reviews.request') && (
                       <button

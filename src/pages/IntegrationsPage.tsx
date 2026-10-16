@@ -23,6 +23,7 @@ import {
 } from '@/lib/integrations';
 import { Modal } from '@/components/ui/Modal';
 import { ApiWebhooksSection } from '@/components/integrations/ApiWebhooksSection';
+import { OnlineStoreSection } from '@/components/integrations/OnlineStoreSection';
 import type { Integration, IntegrationProvider } from '@/types';
 
 type Banner = { kind: 'success' | 'error' | 'info'; text: string } | null;
@@ -165,6 +166,8 @@ export function IntegrationsPage() {
       )}
 
       <ApiWebhooksSection />
+
+      <OnlineStoreSection />
 
       <TwilioModal
         isOpen={twilioOpen}

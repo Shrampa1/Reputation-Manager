@@ -228,6 +228,10 @@
     for (var i = 0; i < hosts.length; i++) load(hosts[i]);
   }
 
+  // Pages that add widgets after load (single-page apps, online stores) call
+  // window.ReputationEngineReviews.refresh() to render new ones.
+  window.ReputationEngineReviews = { refresh: init };
+
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 })();
