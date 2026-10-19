@@ -46,6 +46,8 @@ export interface ReviewRequest {
   source?: 'app' | 'api' | 'square' | 'multistore';
   /** When a scheduled request will be emailed */
   scheduled_for?: string | null;
+  /** When the one follow-up reminder went out */
+  reminder_sent_at?: string | null;
   created_at: string;
 }
 
@@ -186,6 +188,8 @@ export interface Location {
   review_link: string | null;
   /** Ask 1-3 star customers for private feedback before showing the review link */
   review_shield_enabled: boolean;
+  /** Days before one reminder email to customers who didn't answer; null = off */
+  review_reminder_days?: number | null;
   /** Public id behind the counter QR code (/q/<key>) and the website widget */
   public_key?: string;
   // Google listing, as last synced from the Places API (gbp_place_id holds the Places ID)

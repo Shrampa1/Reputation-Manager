@@ -5,7 +5,7 @@ import { useLocationContext } from '@/context/LocationContext';
 import type { ReviewRequest } from '@/types';
 
 export const REVIEW_REQUEST_COLUMNS =
-  'id, location_id, lead_id, customer_name, email, channel, status, error, shield, rating, feedback, responded_at, clicked_review_at, sent_by, source, scheduled_for, created_at';
+  'id, location_id, lead_id, customer_name, email, channel, status, error, shield, rating, feedback, responded_at, clicked_review_at, sent_by, source, scheduled_for, reminder_sent_at, created_at';
 
 export async function sendReviewRequest(input: {
   name: string;
@@ -73,7 +73,7 @@ export function requestOutcome(r: ReviewRequest): { label: string; tone: 'slate'
     return { label: `Scheduled · ${when}`, tone: 'slate' };
   }
   if (r.status === 'sending') return { label: 'Sending…', tone: 'slate' };
-  if (r.rating === null) return { label: 'Sent · no response yet', tone: 'sky' };
+  if (r.rating === null) return { label: r.reminder_sent_at ? 'Reminder sent · no response yet' : 'Sent · no response yet', tone: 'sky' };
   if (r.clicked_review_at) return { label: `Rated ${r.rating}★ · opened review page`, tone: 'emerald' };
   if (r.feedback) return { label: `Rated ${r.rating}★ · left private feedback`, tone: 'amber' };
   return { label: `Rated ${r.rating}★`, tone: r.rating >= 4 ? 'emerald' : 'amber' };

@@ -5,7 +5,9 @@ import { useAuth } from '@/context/AuthContext';
 import { defaultPermissions, type Permission } from '@/lib/permissions';
 import type { Location, MemberRole, Organization, ViewerRole } from '@/types';
 
-type LocationFields = Partial<Pick<Location, 'name' | 'address' | 'phone' | 'website' | 'review_link' | 'review_shield_enabled'>>;
+type LocationFields = Partial<
+  Pick<Location, 'name' | 'address' | 'phone' | 'website' | 'review_link' | 'review_shield_enabled' | 'review_reminder_days'>
+>;
 
 /** A business the signed-in user belongs to */
 export interface BusinessMembership {

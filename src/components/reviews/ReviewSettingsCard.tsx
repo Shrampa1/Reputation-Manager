@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Check, ExternalLink, Link2, Loader2, ShieldCheck } from 'lucide-react';
+import { BellRing, Check, ExternalLink, Link2, Loader2, ShieldCheck } from 'lucide-react';
 import { useLocationContext } from '@/context/LocationContext';
 
 /** Normalizes a pasted link and checks it's a usable https URL. */
@@ -17,22 +17,30 @@ function parseReviewLink(raw: string): { url: string | null; error: string | nul
   }
 }
 
-/** Settings → Review requests: where customers are sent, and the feedback shield. */
+/** '' when reminders are off; missing (before migration 021) means the default, 3 days. */
+const reminderSetting = (days: number | null | undefined) => (days === null ? '' : String(days ?? 3));
+
+/** Settings → Review requests: where customers are sent, the feedback shield and the reminder. */
 export function ReviewSettingsCard() {
   const { location, updateLocation, can } = useLocationContext();
   // Feature access (role default or Role access override)
   const isAdmin = can('business.edit');
   const [link, setLink] = useState('');
   const [shield, setShield] = useState(true);
+  /** '' = reminders off */
+  const [reminderDays, setReminderDays] = useState<string>('3');
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     setLink(location?.review_link ?? '');
     setShield(location?.review_shield_enabled ?? true);
-  }, [location?.review_link, location?.review_shield_enabled]);
+    setReminderDays(reminderSetting(location?.review_reminder_days));
+  }, [location]);
 
-  const dirty = link.trim() !== (location?.review_link ?? '') || shield !== (location?.review_shield_enabled ?? true);
+  const savedReminder = reminderSetting(location?.review_reminder_days);
+  const dirty =
+    link.trim() !== (location?.review_link ?? '') || shield !== (location?.review_shield_enabled ?? true) || reminderDays !== savedReminder;
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,7 +51,11 @@ export function ReviewSettingsCard() {
     }
     setSaving(true);
     setStatus(null);
-    const { error } = await updateLocation({ review_link: parsed.url, review_shield_enabled: shield });
+    const { error } = await updateLocation({
+      review_link: parsed.url,
+      review_shield_enabled: shield,
+      review_reminder_days: reminderDays ? Number(reminderDays) : null,
+    });
     setSaving(false);
     setStatus(error ? { kind: 'error', text: error } : { kind: 'success', text: 'Review settings saved' });
   };
@@ -105,6 +117,30 @@ export function ReviewSettingsCard() {
         >
           <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${shield ? 'translate-x-5' : ''}`} />
         </button>
+      </div>
+
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mt-3 p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
+        <div className="flex items-start gap-2.5">
+          <BellRing className="w-5 h-5 text-sky-600 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-slate-900">Reminder email</p>
+            <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+              One friendly reminder to customers who haven’t rated you yet. Never more than one per request.
+            </p>
+          </div>
+        </div>
+        <select
+          aria-label="When to send the reminder"
+          value={reminderDays}
+          disabled={!isAdmin}
+          onChange={(e) => setReminderDays(e.target.value)}
+          className="input-field !py-1.5 sm:!w-auto shrink-0 disabled:bg-slate-50"
+        >
+          <option value="">Off</option>
+          {[2, 3, 5, 7].map((d) => (
+            <option key={d} value={d}>After {d} days</option>
+          ))}
+        </select>
       </div>
 
       {isAdmin ? (

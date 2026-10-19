@@ -24,6 +24,7 @@ import { StarRating } from '@/components/ui/StarRating';
 import { PlatformIcon, PlatformLabel } from '@/components/ui/PlatformIcon';
 import { Modal } from '@/components/ui/Modal';
 import { ReviewRequestModal } from '@/components/reviews/ReviewRequestModal';
+import { ReviewInsightsPanel } from '@/components/reviews/ReviewInsightsPanel';
 import { ReviewRequestsPanel } from '@/components/reviews/ReviewRequestsPanel';
 import { AddReviewModal } from '@/components/reviews/AddReviewModal';
 import { BulkRequestModal } from '@/components/reviews/BulkRequestModal';
@@ -57,7 +58,7 @@ function getInitials(name: string): string {
 export function ReviewsPage() {
   const { reviews, loading, refetch: refetchReviews } = useReviews();
   const { requests, loading: requestsLoading, error: requestsError, refetch: refetchRequests } = useReviewRequests();
-  const [tab, setTab] = useState<'reviews' | 'requests'>('reviews');
+  const [tab, setTab] = useState<'reviews' | 'requests' | 'insights'>('reviews');
   const [addReviewOpen, setAddReviewOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
@@ -216,6 +217,7 @@ export function ReviewsPage() {
         {([
           ['reviews', 'Reviews'],
           ['requests', `Requests${requests.length ? ` (${requests.length})` : ''}`],
+          ['insights', 'Insights'],
         ] as const).map(([key, label]) => (
           <button
             key={key}
@@ -230,6 +232,8 @@ export function ReviewsPage() {
       </div>
 
       {tab === 'requests' && <ReviewRequestsPanel requests={requests} loading={requestsLoading} error={requestsError} />}
+
+      {tab === 'insights' && <ReviewInsightsPanel />}
 
       {tab === 'reviews' && (
       <>
