@@ -10,6 +10,8 @@ export const CATEGORY_INFO: Record<ActivityCategory, { label: string; color: str
   leads: { label: 'Leads', color: 'bg-emerald-50 text-emerald-600' },
   reviews: { label: 'Reviews', color: 'bg-amber-50 text-amber-600' },
   business: { label: 'Business', color: 'bg-slate-100 text-slate-600' },
+  ads: { label: 'Ads', color: 'bg-indigo-50 text-indigo-600' },
+  shop: { label: 'Shop', color: 'bg-orange-50 text-orange-600' },
 };
 
 /**

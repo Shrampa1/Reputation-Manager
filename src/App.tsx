@@ -21,6 +21,7 @@ const SeoPage = page('SeoPage', () => import('@/pages/SeoPage'));
 const SocialPage = page('SocialPage', () => import('@/pages/SocialPage'));
 const LeadsPage = page('LeadsPage', () => import('@/pages/LeadsPage'));
 const IntegrationsPage = page('IntegrationsPage', () => import('@/pages/IntegrationsPage'));
+const AdsPage = page('AdsPage', () => import('@/pages/AdsPage'));
 const SettingsPage = page('SettingsPage', () => import('@/pages/SettingsPage'));
 const TeamPage = page('TeamPage', () => import('@/pages/TeamPage'));
 const ActivityPage = page('ActivityPage', () => import('@/pages/ActivityPage'));
@@ -51,6 +52,7 @@ function AppRoutes() {
       <Route path="/seo" element={<SeoPage />} />
       <Route path="/social" element={<SocialPage />} />
       <Route path="/leads" element={<LeadsPage />} />
+      <Route path="/ads" element={<AdminRoute permission="ads.view"><AdsPage /></AdminRoute>} />
       <Route path="/integrations" element={<AdminRoute permission="integrations.manage"><IntegrationsPage /></AdminRoute>} />
       <Route path="/activity" element={<AdminRoute permission="activity.view"><ActivityPage /></AdminRoute>} />
       <Route path="/access" element={<RoleAccessPage />} />

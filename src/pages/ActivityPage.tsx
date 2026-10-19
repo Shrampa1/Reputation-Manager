@@ -6,7 +6,9 @@ import {
   History,
   Inbox,
   Loader2,
+  Megaphone,
   Plug,
+  ShoppingBag,
   Star,
   Users,
   Zap,
@@ -23,9 +25,11 @@ const CATEGORY_ICONS: Record<ActivityCategory, typeof Users> = {
   leads: Inbox,
   reviews: Star,
   business: Building2,
+  ads: Megaphone,
+  shop: ShoppingBag,
 };
 
-const FILTERS: (ActivityCategory | 'all')[] = ['all', 'team', 'posts', 'leads', 'reviews', 'integrations', 'business'];
+const FILTERS: (ActivityCategory | 'all')[] = ['all', 'team', 'posts', 'leads', 'reviews', 'integrations', 'ads', 'business'];
 
 export function ActivityPage() {
   const { organization } = useLocationContext();

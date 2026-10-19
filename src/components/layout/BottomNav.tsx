@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Star, MapPin, CalendarDays, Inbox, LogOut, Plug } from 'lucide-react';
+import { LayoutDashboard, Star, MapPin, CalendarDays, Inbox, LogOut, Megaphone, Plug } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { useAuth } from '@/context/AuthContext';
 import { getInitials } from '@/lib/user';
@@ -57,6 +57,20 @@ export function MobileHeader() {
     <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between px-4 h-14 bg-white/90 backdrop-blur-lg border-b border-slate-200/80">
       <Logo className="text-sm" markClassName="w-8 h-8" />
       <div className="flex items-center gap-2">
+        {can('ads.view') && (
+        <NavLink
+          to="/ads"
+          title="Ads"
+          aria-label="Ads"
+          className={({ isActive }) =>
+            `flex items-center justify-center w-8 h-8 rounded-lg transition-colors ${
+              isActive ? 'bg-sky-50 text-sky-600' : 'text-slate-400 hover:text-slate-600'
+            }`
+          }
+        >
+          <Megaphone className="w-4 h-4" />
+        </NavLink>
+        )}
         {can('integrations.manage') && (
         <NavLink
           to="/integrations"

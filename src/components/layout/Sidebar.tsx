@@ -1,5 +1,5 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Star, MapPin, CalendarDays, Inbox, LogOut, Plug, UserCog, Users, History, CreditCard, ShieldCheck, KeyRound } from 'lucide-react';
+import { LayoutDashboard, Star, MapPin, CalendarDays, Inbox, Megaphone, LogOut, Plug, UserCog, Users, History, CreditCard, ShieldCheck, KeyRound } from 'lucide-react';
 import type { Permission } from '@/lib/permissions';
 import { Logo } from '@/components/Logo';
 import { BusinessSwitcher } from '@/components/BusinessSwitcher';
@@ -7,12 +7,13 @@ import { useAuth } from '@/context/AuthContext';
 import { useLocationContext } from '@/context/LocationContext';
 import { displayName, getInitials } from '@/lib/user';
 
-const navItems = [
+const navItems: { label: string; path: string; icon: typeof Star; permission?: Permission }[] = [
   { label: 'Dashboard', path: '/', icon: LayoutDashboard },
   { label: 'Reviews', path: '/reviews', icon: Star },
   { label: 'SEO & Website', path: '/seo', icon: MapPin },
   { label: 'Social', path: '/social', icon: CalendarDays },
   { label: 'Leads', path: '/leads', icon: Inbox },
+  { label: 'Ads', path: '/ads', icon: Megaphone, permission: 'ads.view' },
 ];
 
 const settingsItems = [
@@ -44,7 +45,7 @@ export function Sidebar() {
 
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         <p className="px-3 pb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">Menu</p>
-        {navItems.map((item) => (
+        {navItems.filter((item) => !item.permission || can(item.permission)).map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
