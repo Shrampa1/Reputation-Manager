@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
   Check,
@@ -17,15 +17,18 @@ import { useAuth } from '@/context/AuthContext';
 import { useLocationContext } from '@/context/LocationContext';
 import { Modal } from '@/components/ui/Modal';
 import {
+  CLIENT_INFO,
   ROLE_INFO,
   changeRole,
   fetchTeam,
   inviteMember,
   permissionsFor,
   removeMember,
+  roleInfo,
+  teamRoleOf,
   transferOwnership,
 } from '@/lib/team';
-import type { MemberRole, TeamMember } from '@/types';
+import type { MemberRole, TeamMember, TeamRole } from '@/types';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -56,7 +59,9 @@ export function TeamPage() {
   const [confirm, setConfirm] = useState<Confirm>(null);
 
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState<Exclude<MemberRole, 'owner'>>('member');
+  const [searchParams] = useSearchParams();
+  // The Agency page links here with ?invite=client
+  const [inviteRole, setInviteRole] = useState<TeamRole>(searchParams.get('invite') === 'client' ? 'client' : 'member');
   const [inviting, setInviting] = useState(false);
   const [inviteStatus, setInviteStatus] = useState<Status>(null);
 
@@ -97,7 +102,7 @@ export function TeamPage() {
     try {
       const { emailSent } = await inviteMember(email, inviteRole);
       setInviteEmail('');
-      setInviteRole('member');
+      setInviteRole(inviteRole === 'client' ? 'client' : 'member');
       setInviteStatus({
         kind: 'success',
         text: emailSent ? `Invite sent to ${email}.` : `${email} already had an account and was added to your team.`,
@@ -110,14 +115,15 @@ export function TeamPage() {
     }
   };
 
-  const handleRoleChange = async (member: TeamMember, role: Exclude<MemberRole, 'owner'>) => {
-    if (!organizationId || role === member.role) return;
+  const handleRoleChange = async (member: TeamMember, role: TeamRole) => {
+    if (!organizationId || role === teamRoleOf(member)) return;
     setBusyUserId(member.user_id);
     setStatus(null);
     try {
       await changeRole(organizationId, member.user_id, role);
-      setMembers((prev) => prev.map((m) => (m.user_id === member.user_id ? { ...m, role } : m)));
-      setStatus({ kind: 'success', text: `${member.full_name || member.email} is now ${ROLE_INFO[role].label.toLowerCase()}.` });
+      const next = role === 'client' ? { role: 'member' as const, is_client: true } : { role, is_client: false };
+      setMembers((prev) => prev.map((m) => (m.user_id === member.user_id ? { ...m, ...next } : m)));
+      setStatus({ kind: 'success', text: `${member.full_name || member.email} is now ${roleInfo(next).label.toLowerCase()}.` });
     } catch (err) {
       setStatus({ kind: 'error', text: err instanceof Error ? err.message : 'Could not change the role' });
     } finally {
@@ -230,10 +236,11 @@ export function TeamPage() {
             <select
               id="invite-role"
               value={inviteRole}
-              onChange={(e) => setInviteRole(e.target.value as Exclude<MemberRole, 'owner'>)}
-              className="input-field sm:w-36"
+              onChange={(e) => setInviteRole(e.target.value as TeamRole)}
+              className="input-field sm:w-44"
             >
               <option value="member">Member</option>
+              <option value="client">Client (view only)</option>
               {(myRole === 'owner' || myRole === 'superadmin') && <option value="admin">Admin</option>}
             </select>
             <button type="submit" disabled={inviting || !inviteEmail.trim()} className="btn-primary shrink-0">
@@ -329,19 +336,20 @@ export function TeamPage() {
                     {busy && <Loader2 className="w-4 h-4 text-sky-500 animate-spin" />}
                     {can.changeRole ? (
                       <select
-                        value={m.role}
+                        value={teamRoleOf(m)}
                         disabled={busy}
-                        onChange={(e) => handleRoleChange(m, e.target.value as Exclude<MemberRole, 'owner'>)}
+                        onChange={(e) => handleRoleChange(m, e.target.value as TeamRole)}
                         aria-label={`Role for ${m.full_name || m.email}`}
                         className="input-field !py-1.5 !w-28 text-sm"
                       >
                         <option value="admin">Admin</option>
                         <option value="member">Member</option>
+                        <option value="client">Client</option>
                       </select>
                     ) : (
-                      <span className={`badge ${ROLE_INFO[m.role].color}`}>
+                      <span className={`badge ${roleInfo(m).color}`}>
                         {m.role === 'owner' && <Crown className="w-3 h-3" />}
-                        {ROLE_INFO[m.role].label}
+                        {roleInfo(m).label}
                       </span>
                     )}
                     {can.makeOwner && (
@@ -396,6 +404,12 @@ export function TeamPage() {
               <dd className="text-sm text-slate-600">{ROLE_INFO[r].description}</dd>
             </div>
           ))}
+          <div className="flex items-start gap-3">
+            <dt className="shrink-0 w-20">
+              <span className={`badge ${CLIENT_INFO.color}`}>{CLIENT_INFO.label}</span>
+            </dt>
+            <dd className="text-sm text-slate-600">{CLIENT_INFO.description}</dd>
+          </div>
         </dl>
       </div>
 

@@ -11,6 +11,8 @@ import { SignupPage } from '@/pages/SignupPage';
 import { useLocationContext } from '@/context/LocationContext';
 import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage';
 import { ResetPasswordPage } from '@/pages/ResetPasswordPage';
+import { PortalPage } from '@/pages/PortalPage';
+import { BrandingEffect } from '@/hooks/useBranding';
 
 // Pages are split into their own files and downloaded when first opened
 const page = <K extends string, P extends object>(name: K, load: () => Promise<Record<K, React.ComponentType<P>>>) =>
@@ -22,6 +24,7 @@ const SocialPage = page('SocialPage', () => import('@/pages/SocialPage'));
 const LeadsPage = page('LeadsPage', () => import('@/pages/LeadsPage'));
 const IntegrationsPage = page('IntegrationsPage', () => import('@/pages/IntegrationsPage'));
 const AdsPage = page('AdsPage', () => import('@/pages/AdsPage'));
+const AgencyPage = page('AgencyPage', () => import('@/pages/AgencyPage'));
 const SettingsPage = page('SettingsPage', () => import('@/pages/SettingsPage'));
 const TeamPage = page('TeamPage', () => import('@/pages/TeamPage'));
 const ActivityPage = page('ActivityPage', () => import('@/pages/ActivityPage'));
@@ -53,6 +56,7 @@ function AppRoutes() {
       <Route path="/social" element={<SocialPage />} />
       <Route path="/leads" element={<LeadsPage />} />
       <Route path="/ads" element={<AdminRoute permission="ads.view"><AdsPage /></AdminRoute>} />
+      <Route path="/agency" element={<AgencyPage />} />
       <Route path="/integrations" element={<AdminRoute permission="integrations.manage"><IntegrationsPage /></AdminRoute>} />
       <Route path="/activity" element={<AdminRoute permission="activity.view"><ActivityPage /></AdminRoute>} />
       <Route path="/access" element={<RoleAccessPage />} />
@@ -68,7 +72,11 @@ function AppRoutes() {
 function App() {
   return (
     <Suspense fallback={<PageLoading />}>
+    <>
+    <BrandingEffect />
     <Routes>
+      {/* An agency's branded client portal (sign-in) */}
+      <Route path="/p/:slug" element={<PortalPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
@@ -123,6 +131,7 @@ function App() {
         }
       />
     </Routes>
+    </>
     </Suspense>
   );
 }

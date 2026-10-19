@@ -24,6 +24,7 @@ import {
 import { Modal } from '@/components/ui/Modal';
 import { ApiWebhooksSection } from '@/components/integrations/ApiWebhooksSection';
 import { OnlineStoreSection } from '@/components/integrations/OnlineStoreSection';
+import { SquareSettings } from '@/components/integrations/SquareSettings';
 import type { Integration, IntegrationProvider } from '@/types';
 
 type Banner = { kind: 'success' | 'error' | 'info'; text: string } | null;
@@ -33,7 +34,7 @@ function formatDate(iso: string) {
 }
 
 export function IntegrationsPage() {
-  const { loading, byProvider } = useIntegrations();
+  const { loading, byProvider, refetch } = useIntegrations();
   const { isAdmin, loading: roleLoading } = useMemberRole();
   const [searchParams, setSearchParams] = useSearchParams();
   const [banner, setBanner] = useState<Banner>(null);
@@ -160,6 +161,7 @@ export function IntegrationsPage() {
               busy={busy === info.provider}
               onConnect={() => handleConnect(info)}
               onDisconnect={(i) => setConfirmDisconnect(i)}
+              onSaved={refetch}
             />
           ))}
         </div>
@@ -208,6 +210,7 @@ function IntegrationCard({
   busy,
   onConnect,
   onDisconnect,
+  onSaved,
 }: {
   info: ProviderInfo;
   integration: Integration | null;
@@ -215,6 +218,7 @@ function IntegrationCard({
   busy: boolean;
   onConnect: () => void;
   onDisconnect: (integration: Integration) => void;
+  onSaved: () => void;
 }) {
   const Icon = info.icon;
   const status = integration?.status ?? 'disconnected';
@@ -262,6 +266,10 @@ function IntegrationCard({
             <p className="text-xs text-rose-600 mt-2">{integration.last_error}</p>
           )}
         </div>
+      )}
+
+      {info.provider === 'square' && integration && status === 'connected' && (
+        <SquareSettings integration={integration} canManage={canManage} onSaved={onSaved} />
       )}
 
       {!integration && info.setupNote && (

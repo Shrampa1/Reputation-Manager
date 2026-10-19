@@ -1,5 +1,6 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Star, MapPin, CalendarDays, Inbox, Megaphone, LogOut, Plug, UserCog, Users, History, CreditCard, ShieldCheck, KeyRound } from 'lucide-react';
+import { LayoutDashboard, Star, MapPin, CalendarDays, Inbox, Megaphone, LogOut, Plug, UserCog, Users, History, CreditCard, ShieldCheck, KeyRound, Briefcase, FileText } from 'lucide-react';
+import { useBranding } from '@/hooks/useBranding';
 import type { Permission } from '@/lib/permissions';
 import { Logo } from '@/components/Logo';
 import { BusinessSwitcher } from '@/components/BusinessSwitcher';
@@ -7,9 +8,10 @@ import { useAuth } from '@/context/AuthContext';
 import { useLocationContext } from '@/context/LocationContext';
 import { displayName, getInitials } from '@/lib/user';
 
-const navItems: { label: string; path: string; icon: typeof Star; permission?: Permission }[] = [
-  { label: 'Dashboard', path: '/', icon: LayoutDashboard },
-  { label: 'Reviews', path: '/reviews', icon: Star },
+const navItems: { label: string; path: string; icon: typeof Star; permission?: Permission; client?: boolean }[] = [
+  // client: shown to view-only client logins (agency portal) too
+  { label: 'Dashboard', path: '/', icon: LayoutDashboard, client: true },
+  { label: 'Reviews', path: '/reviews', icon: Star, client: true },
   { label: 'SEO & Website', path: '/seo', icon: MapPin },
   { label: 'Social', path: '/social', icon: CalendarDays },
   { label: 'Leads', path: '/leads', icon: Inbox },
@@ -27,7 +29,8 @@ const settingsItems = [
 
 export function Sidebar() {
   const { user, signOut } = useAuth();
-  const { organization, can, isOwnerLike, isPlatformAdmin } = useLocationContext();
+  const { organization, can, isOwnerLike, isPlatformAdmin, isClient, hasAgencyPlan } = useLocationContext();
+  const branding = useBranding();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -38,14 +41,14 @@ export function Sidebar() {
   return (
     <aside className="hidden lg:flex flex-col w-64 shrink-0 h-screen sticky top-0 border-r border-slate-200/80 bg-white">
       <Link to="/" className="flex items-center px-5 h-16 border-b border-slate-200/80 text-sm">
-        <Logo />
+        <Logo branding={branding} />
       </Link>
 
       <BusinessSwitcher />
 
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         <p className="px-3 pb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">Menu</p>
-        {navItems.filter((item) => !item.permission || can(item.permission)).map((item) => (
+        {navItems.filter((item) => (isClient ? item.client : !item.permission || can(item.permission))).map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
@@ -58,9 +61,21 @@ export function Sidebar() {
             <span>{item.label}</span>
           </NavLink>
         ))}
+        {isClient && can('reports.download') && (
+          <NavLink to="/report" className="nav-link nav-link-inactive">
+            <FileText className="w-[18px] h-[18px] shrink-0" />
+            <span>Monthly report</span>
+          </NavLink>
+        )}
+        {!isClient && (hasAgencyPlan || isPlatformAdmin) && (
+          <NavLink to="/agency" className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : 'nav-link-inactive'}`}>
+            <Briefcase className="w-[18px] h-[18px] shrink-0" />
+            <span>Agency</span>
+          </NavLink>
+        )}
 
         <p className="px-3 pt-5 pb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">Settings</p>
-        {settingsItems.filter((item) => (item.permission ? can(item.permission) : item.ownerOnly ? isOwnerLike : true)).map((item) => (
+        {settingsItems.filter((item) => (isClient ? item.path === '/settings' : item.permission ? can(item.permission) : item.ownerOnly ? isOwnerLike : true)).map((item) => (
           <NavLink
             key={item.path}
             to={item.path}

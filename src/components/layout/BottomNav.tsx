@@ -1,8 +1,9 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Star, MapPin, CalendarDays, Inbox, LogOut, Megaphone, Plug } from 'lucide-react';
+import { Briefcase, LayoutDashboard, Star, MapPin, CalendarDays, Inbox, LogOut, Megaphone, Plug } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { useAuth } from '@/context/AuthContext';
 import { getInitials } from '@/lib/user';
+import { useBranding } from '@/hooks/useBranding';
 import { useLocationContext } from '@/context/LocationContext';
 
 const navItems = [
@@ -14,10 +15,12 @@ const navItems = [
 ];
 
 export function BottomNav() {
+  const { isClient } = useLocationContext();
+  const items = isClient ? navItems.slice(0, 2) : navItems;
   return (
     <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white/90 backdrop-blur-lg border-t border-slate-200/80 pb-[env(safe-area-inset-bottom)]">
       <div className="flex items-center justify-around px-2 h-16">
-        {navItems.map((item) => (
+        {items.map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
@@ -45,7 +48,8 @@ export function BottomNav() {
 
 export function MobileHeader() {
   const { user, signOut } = useAuth();
-  const { can } = useLocationContext();
+  const { can, isClient, hasAgencyPlan, isPlatformAdmin } = useLocationContext();
+  const branding = useBranding();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -55,9 +59,23 @@ export function MobileHeader() {
 
   return (
     <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between px-4 h-14 bg-white/90 backdrop-blur-lg border-b border-slate-200/80">
-      <Logo className="text-sm" markClassName="w-8 h-8" />
+      <Logo className="text-sm" markClassName="w-8 h-8" branding={branding} />
       <div className="flex items-center gap-2">
-        {can('ads.view') && (
+        {!isClient && (hasAgencyPlan || isPlatformAdmin) && (
+        <NavLink
+          to="/agency"
+          title="Agency"
+          aria-label="Agency"
+          className={({ isActive }) =>
+            `flex items-center justify-center w-8 h-8 rounded-lg transition-colors ${
+              isActive ? 'bg-sky-50 text-sky-600' : 'text-slate-400 hover:text-slate-600'
+            }`
+          }
+        >
+          <Briefcase className="w-4 h-4" />
+        </NavLink>
+        )}
+        {can('ads.view') && !isClient && (
         <NavLink
           to="/ads"
           title="Ads"

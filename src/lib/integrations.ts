@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react';
-import { Facebook, Instagram, Megaphone, MessageSquare, MapPin, Search } from 'lucide-react';
+import { CreditCard, Facebook, Instagram, Megaphone, MessageSquare, MapPin, Search } from 'lucide-react';
 import { TikTokIcon } from '@/components/ui/TikTokIcon';
 import { supabase } from '@/lib/supabase';
 import { callFunction } from '@/lib/functions';
@@ -49,6 +49,17 @@ export const PROVIDERS: ProviderInfo[] = [
     connectMethod: 'oauth',
     connectLabel: 'Connect with Facebook',
     setupNote: 'Needs an Instagram Business or Creator account linked to your Facebook Page.',
+  },
+  {
+    provider: 'square',
+    name: 'Square',
+    description: 'Ask customers for a review automatically after they pay with Square.',
+    usedFor: ['Review requests'],
+    icon: CreditCard,
+    iconClass: 'bg-slate-100 text-slate-800',
+    connectMethod: 'oauth',
+    connectLabel: 'Connect Square',
+    setupNote: 'Pro and Agency plans. Works with Square Point of Sale, Online Checkout and Invoices.',
   },
   {
     provider: 'tiktok',

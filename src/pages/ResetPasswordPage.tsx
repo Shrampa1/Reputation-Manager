@@ -4,6 +4,8 @@ import { Check, Loader2, Lock } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { AuthLayout } from '@/components/layout/AuthLayout';
+import { useBranding } from '@/hooks/useBranding';
+import { fetchPortalBranding, storePortalBranding } from '@/lib/branding';
 
 const MIN_PASSWORD = 8;
 
@@ -16,6 +18,8 @@ export function ResetPasswordPage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const isInvite = params.get('invite') === '1';
+  const branding = useBranding();
+  const portal = params.get('portal');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [saving, setSaving] = useState(false);
@@ -28,6 +32,11 @@ export function ResetPasswordPage() {
     const t = setTimeout(() => setWaited(true), 2500);
     return () => clearTimeout(t);
   }, []);
+
+  // Invited through an agency portal: remember it so the sign-in page keeps its branding
+  useEffect(() => {
+    if (portal) fetchPortalBranding(portal).then((b) => b && storePortalBranding(b));
+  }, [portal]);
 
   const linkError = (() => {
     const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
@@ -82,7 +91,9 @@ export function ResetPasswordPage() {
         <div>
           <h2 className="text-2xl font-bold text-slate-900">{isInvite ? 'Welcome! Choose a password' : 'Choose a new password'}</h2>
           <p className="text-sm text-slate-500 mt-1.5">
-            {isInvite ? 'You’ve been invited to a business on Reputation Engine. Set a password to finish joining.' : `For ${user.email}`}
+            {isInvite
+              ? `You’ve been invited to ${branding ? `the ${branding.name} portal` : 'a business on Reputation Engine'}. Set a password to finish joining.`
+              : `For ${user.email}`}
           </p>
           <form onSubmit={handleSubmit} className="mt-6 space-y-4" noValidate>
             <div>

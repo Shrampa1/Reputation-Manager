@@ -3,9 +3,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Loader2, Mail, Lock } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { AuthLayout } from '@/components/layout/AuthLayout';
+import { useBranding } from '@/hooks/useBranding';
 
 export function LoginPage() {
   const { signIn } = useAuth();
+  const branding = useBranding();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,7 +31,7 @@ export function LoginPage() {
     <AuthLayout>
       <div>
         <h2 className="text-2xl font-bold text-slate-900">Welcome back</h2>
-        <p className="text-sm text-slate-500 mt-1.5">Sign in to your Reputation Engine account.</p>
+        <p className="text-sm text-slate-500 mt-1.5">{branding ? `Sign in to your ${branding.name} portal.` : 'Sign in to your Reputation Engine account.'}</p>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <div>
@@ -77,12 +79,21 @@ export function LoginPage() {
           </button>
         </form>
 
-        <p className="text-sm text-slate-500 text-center mt-5">
-          Don't have an account?{' '}
-          <Link to="/signup" className="font-semibold text-sky-600 hover:text-sky-700">
-            Sign up
-          </Link>
-        </p>
+        {branding ? (
+          // Portal logins are by invitation from the agency
+          branding.support_email && (
+            <p className="text-sm text-slate-500 text-center mt-5">
+              No login yet? Ask <a href={`mailto:${branding.support_email}`} className="font-semibold" style={{ color: 'rgb(var(--brand-600))' }}>{branding.support_email}</a>
+            </p>
+          )
+        ) : (
+          <p className="text-sm text-slate-500 text-center mt-5">
+            Don't have an account?{' '}
+            <Link to="/signup" className="font-semibold text-sky-600 hover:text-sky-700">
+              Sign up
+            </Link>
+          </p>
+        )}
       </div>
     </AuthLayout>
   );

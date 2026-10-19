@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { setActiveOrganizationId } from '@/lib/functions';
 import { useAuth } from '@/context/AuthContext';
 import { defaultPermissions, type Permission } from '@/lib/permissions';
+import { fetchBusinessBranding, type Branding } from '@/lib/branding';
 import type { Location, MemberRole, Organization, ViewerRole } from '@/types';
 
 type LocationFields = Partial<
@@ -31,6 +32,12 @@ interface LocationContextValue {
   memberships: BusinessMembership[];
   /** The app owner: can see every business in Platform admin */
   isPlatformAdmin: boolean;
+  /** A view-only client login in the active business (agency client portal) */
+  isClient: boolean;
+  /** The agency branding of the active business, when it's in an agency's client portal */
+  branding: Branding | null;
+  /** Owns a business on the Agency plan (can run a client portal) */
+  hasAgencyPlan: boolean;
   loading: boolean;
   error: string | null;
   /** Reloads businesses, role and location from the database */
@@ -72,6 +79,9 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
   const [permissions, setPermissions] = useState<Record<string, boolean> | null>(null);
   const [memberships, setMemberships] = useState<BusinessMembership[]>([]);
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+  const [branding, setBranding] = useState<Branding | null>(null);
+  const [hasAgencyPlan, setHasAgencyPlan] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -82,6 +92,8 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
       setRole(null);
       setPermissions(null);
       setMemberships([]);
+      setIsClient(false);
+      setBranding(null);
       setActiveOrganizationId(null);
       setError(null);
       setLoading(false);
@@ -168,8 +180,15 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
     setOrganization({ id: active.id, name: active.name });
     setRole(active.role);
 
-    const { data: perms, error: permsError } = await supabase.rpc('get_my_permissions', { p_org: active.id });
+    const [{ data: perms, error: permsError }, { data: me }, brand] = await Promise.all([
+      supabase.rpc('get_my_permissions', { p_org: active.id }),
+      // is_client arrives with migration 022; before that the query fails and nobody is a client
+      supabase.from('organization_members').select('is_client').eq('organization_id', active.id).eq('user_id', user.id).maybeSingle(),
+      fetchBusinessBranding(active.id),
+    ]);
     if (isCancelled()) return;
+    setIsClient(Boolean((me as { is_client?: boolean } | null)?.is_client));
+    setBranding(brand);
     setPermissions(!permsError && perms && typeof perms === 'object' ? (perms as Record<string, boolean>) : defaultPermissions(active.role));
 
     const { data: locData, error: locError } = await supabase
@@ -200,6 +219,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     supabase.rpc('is_platform_admin').then(({ data, error: rpcError }) => setIsPlatformAdmin(!rpcError && data === true));
+    supabase.rpc('user_has_agency_plan').then(({ data, error: rpcError }) => setHasAgencyPlan(!rpcError && data === true));
   }, [user]);
 
   const refresh = useCallback(() => load(() => false, organization?.id), [load, organization?.id]);
@@ -265,6 +285,9 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
       can,
       memberships,
       isPlatformAdmin,
+      isClient,
+      branding,
+      hasAgencyPlan,
       loading,
       error,
       refresh,
@@ -273,7 +296,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
       updateLocation,
       updateOrganizationName,
     }),
-    [location, organization, role, can, memberships, isPlatformAdmin, loading, error, refresh, switchOrganization, createBusiness, updateLocation, updateOrganizationName]
+    [location, organization, role, can, memberships, isPlatformAdmin, isClient, branding, hasAgencyPlan, loading, error, refresh, switchOrganization, createBusiness, updateLocation, updateOrganizationName]
   );
 
   return <LocationContext.Provider value={value}>{children}</LocationContext.Provider>;

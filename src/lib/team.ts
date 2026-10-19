@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { callFunction } from '@/lib/functions';
-import type { MemberRole, TeamMember, ViewerRole } from '@/types';
+import type { MemberRole, TeamMember, TeamRole, ViewerRole } from '@/types';
 
 export const ROLE_INFO: Record<MemberRole, { label: string; color: string; description: string }> = {
   owner: {
@@ -19,6 +19,17 @@ export const ROLE_INFO: Record<MemberRole, { label: string; color: string; descr
     description: 'Works with reviews, leads and posts. Can’t change settings or the team.',
   },
 };
+
+export const CLIENT_INFO = {
+  label: 'Client',
+  color: 'bg-violet-50 text-violet-700',
+  description: 'View-only login for your customer: sees reviews and reports, can send review requests.',
+};
+
+/** Badge/label for a team member (clients are members with view-only access). */
+export const roleInfo = (m: Pick<TeamMember, 'role' | 'is_client'>) => (m.is_client ? CLIENT_INFO : ROLE_INFO[m.role]);
+
+export const teamRoleOf = (m: Pick<TeamMember, 'role' | 'is_client'>): TeamRole | 'owner' => (m.is_client ? 'client' : m.role);
 
 /**
  * What the signed-in user (with role `myRole`) may do to `target`. Mirrors the database rules.
@@ -43,7 +54,7 @@ export async function fetchTeam(organizationId: string): Promise<TeamMember[]> {
   return (data as TeamMember[]) ?? [];
 }
 
-export async function inviteMember(email: string, role: Exclude<MemberRole, 'owner'>) {
+export async function inviteMember(email: string, role: TeamRole) {
   return callFunction<{ success: boolean; emailSent: boolean }>('team-invite', {
     email,
     role,
@@ -51,10 +62,10 @@ export async function inviteMember(email: string, role: Exclude<MemberRole, 'own
   });
 }
 
-export async function changeRole(organizationId: string, userId: string, role: Exclude<MemberRole, 'owner'>) {
+export async function changeRole(organizationId: string, userId: string, role: TeamRole) {
   const { data, error } = await supabase
     .from('organization_members')
-    .update({ role })
+    .update(role === 'client' ? { role: 'member', is_client: true } : { role, is_client: false })
     .eq('organization_id', organizationId)
     .eq('user_id', userId)
     .select('user_id');

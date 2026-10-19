@@ -115,7 +115,8 @@ export type IntegrationProvider =
   | 'tiktok'
   | 'tiktok_ads'
   | 'tiktok_shop'
-  | 'multistore';
+  | 'multistore'
+  | 'square';
 export type IntegrationStatus = 'connected' | 'error' | 'disconnected';
 
 export interface Integration {
@@ -158,9 +159,14 @@ export interface TeamMember {
   email: string;
   full_name: string | null;
   role: MemberRole;
+  /** View-only client login (agency client portal, migration 022) */
+  is_client?: boolean;
   joined_at: string;
   last_sign_in_at: string | null;
 }
+
+/** What someone can be invited as or changed to (a client is a member with view-only access) */
+export type TeamRole = 'admin' | 'member' | 'client';
 
 // Smart Tasks
 export interface SmartTask {

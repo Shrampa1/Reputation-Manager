@@ -11,6 +11,12 @@
     --color-text-muted: 100 116 139;
     --color-primary: 14 165 233;
     --color-primary-dark: 2 132 199;
+    /* Primary colour (sky by default; an agency client portal sets its own, see lib/branding.ts) */
+    --brand-50: 240 249 255;
+    --brand-100: 224 242 254;
+    --brand-500: 14 165 233;
+    --brand-600: 2 132 199;
+    --brand-700: 3 105 161;
   }
 
   * {
@@ -36,7 +42,12 @@
   }
 
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-sky-500 text-white font-medium text-sm transition-all hover:bg-sky-600 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-white font-medium text-sm transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed;
+    background-color: rgb(var(--brand-500));
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background-color: rgb(var(--brand-600));
   }
 
   .btn-secondary {
@@ -48,7 +59,12 @@
   }
 
   .input-field {
-    @apply w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400 transition-all focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400;
+    @apply w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400 transition-all focus:outline-none focus:ring-2;
+  }
+
+  .input-field:focus {
+    border-color: rgb(var(--brand-500) / 0.7);
+    --tw-ring-color: rgb(var(--brand-500) / 0.2);
   }
 
   .badge {
@@ -64,7 +80,8 @@
   }
 
   .nav-link-active {
-    @apply bg-sky-50 text-sky-600;
+    background-color: rgb(var(--brand-50));
+    color: rgb(var(--brand-600));
   }
 }
 
