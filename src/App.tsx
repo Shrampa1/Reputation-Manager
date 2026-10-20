@@ -38,6 +38,7 @@ const RoleAccessPage = page('RoleAccessPage', () => import('@/pages/RoleAccessPa
 const AutomationsPage = page('AutomationsPage', () => import('@/pages/AutomationsPage'));
 const ProspectsPage = page('ProspectsPage', () => import('@/pages/ProspectsPage'));
 const TemplatesPage = page('TemplatesPage', () => import('@/pages/TemplatesPage'));
+const WebsiteChatPage = page('WebsiteChatPage', () => import('@/pages/WebsiteChatPage'));
 const ApprovalsPage = page('ApprovalsPage', () => import('@/pages/ApprovalsPage'));
 const GooglePage = page('GooglePage', () => import('@/pages/GooglePage'));
 const RankingsPage = page('RankingsPage', () => import('@/pages/RankingsPage'));
@@ -65,6 +66,7 @@ function AppRoutes() {
       <Route path="/seo" element={<SeoPage />} />
       <Route path="/social" element={<SocialPage />} />
       <Route path="/leads" element={<LeadsPage />} />
+      <Route path="/chat" element={<WebsiteChatPage />} />
       <Route path="/ads" element={<AdminRoute permission="ads.view"><AdsPage /></AdminRoute>} />
       <Route path="/agency" element={<AgencyPage />} />
       <Route path="/integrations" element={<AdminRoute permission="integrations.manage"><IntegrationsPage /></AdminRoute>} />
