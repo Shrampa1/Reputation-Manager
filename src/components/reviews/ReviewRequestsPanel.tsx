@@ -131,6 +131,13 @@ export function ReviewRequestsPanel({
                       {r.source === 'square' && ' · from Square'}
                       {r.source === 'multistore' && ' · from your online store'}
                     </p>
+                    {r.tags && r.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {r.tags.map((t) => (
+                          <span key={t} className="text-[11px] px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600">{t}</span>
+                        ))}
+                      </div>
+                    )}
                     {r.status === 'scheduled' && can('reviews.request') && (
                       <button
                         onClick={() => cancel(r.id)}

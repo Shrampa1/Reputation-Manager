@@ -48,6 +48,8 @@ export interface ReviewRequest {
   scheduled_for?: string | null;
   /** When the one follow-up reminder went out */
   reminder_sent_at?: string | null;
+  /** Labels from the app that created it (e.g. S.Ops project or staff), lowercase */
+  tags?: string[];
   created_at: string;
 }
 

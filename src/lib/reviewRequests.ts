@@ -5,7 +5,7 @@ import { useLocationContext } from '@/context/LocationContext';
 import type { ReviewRequest } from '@/types';
 
 export const REVIEW_REQUEST_COLUMNS =
-  'id, location_id, lead_id, customer_name, email, channel, status, error, shield, rating, feedback, responded_at, clicked_review_at, sent_by, source, scheduled_for, reminder_sent_at, created_at';
+  'id, location_id, lead_id, customer_name, email, channel, status, error, shield, rating, feedback, responded_at, clicked_review_at, sent_by, source, scheduled_for, reminder_sent_at, tags, created_at';
 
 export async function sendReviewRequest(input: {
   name: string;
