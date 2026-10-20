@@ -18,6 +18,15 @@ export interface Review {
   /** Set for reviews synced from Google (the review's id there) */
   external_id?: string | null;
   external_url?: string | null;
+  /** Who marked it replied and when (a team member, or e.g. "Ali (S.Ops)") */
+  replied_at?: string | null;
+  replied_by?: string | null;
+  /** Client approval of the reply (migration 030) */
+  reply_approval_status?: 'pending' | 'approved' | 'changes_requested' | null;
+  reply_approval_note?: string | null;
+  /** When the reply went live on Google (posted from here, migration 031) */
+  platform_reply_at?: string | null;
+  platform_reply_error?: string | null;
   created_at: string;
 }
 
@@ -50,6 +59,10 @@ export interface ReviewRequest {
   reminder_sent_at?: string | null;
   /** Labels from the app that created it (e.g. S.Ops project or staff), lowercase */
   tags?: string[];
+  /** Latest email reply to the customer's feedback, sent from a connected app (migration 027) */
+  reply_text?: string | null;
+  replied_at?: string | null;
+  replied_by?: string | null;
   created_at: string;
 }
 
@@ -105,6 +118,9 @@ export interface SocialPost {
   /** 'api' when a connected app (e.g. S.Ops) created the draft; source_note says what it was */
   source?: 'app' | 'api';
   source_note?: string | null;
+  /** Client approval (migration 030): pending and changes_requested posts can't publish */
+  approval_status?: 'pending' | 'approved' | 'changes_requested' | null;
+  approval_note?: string | null;
   created_at: string;
   updated_at: string;
 }

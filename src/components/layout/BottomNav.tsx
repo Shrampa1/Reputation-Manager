@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Briefcase, LayoutDashboard, Star, MapPin, CalendarDays, Inbox, LogOut, Megaphone, Plug, Target, Workflow } from 'lucide-react';
+import { Briefcase, ClipboardCheck, LayoutDashboard, Star, MapPin, CalendarDays, Inbox, LogOut, Megaphone, Plug, Target, Workflow } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { useAuth } from '@/context/AuthContext';
 import { getInitials } from '@/lib/user';
@@ -16,7 +16,8 @@ const navItems = [
 
 export function BottomNav() {
   const { isClient } = useLocationContext();
-  const items = isClient ? navItems.slice(0, 2) : navItems;
+  // Clients see their reviews and what's waiting for their approval
+  const items = isClient ? [...navItems.slice(0, 2), { label: 'Approvals', path: '/approvals', icon: ClipboardCheck }] : navItems;
   return (
     <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white/90 backdrop-blur-lg border-t border-slate-200/80 pb-[env(safe-area-inset-bottom)]">
       <div className="flex items-center justify-around px-2 h-16">

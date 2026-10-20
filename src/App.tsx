@@ -38,6 +38,11 @@ const RoleAccessPage = page('RoleAccessPage', () => import('@/pages/RoleAccessPa
 const AutomationsPage = page('AutomationsPage', () => import('@/pages/AutomationsPage'));
 const ProspectsPage = page('ProspectsPage', () => import('@/pages/ProspectsPage'));
 const TemplatesPage = page('TemplatesPage', () => import('@/pages/TemplatesPage'));
+const ApprovalsPage = page('ApprovalsPage', () => import('@/pages/ApprovalsPage'));
+const GooglePage = page('GooglePage', () => import('@/pages/GooglePage'));
+const RankingsPage = page('RankingsPage', () => import('@/pages/RankingsPage'));
+const ListingsPage = page('ListingsPage', () => import('@/pages/ListingsPage'));
+const ClientReportsPage = page('ClientReportsPage', () => import('@/pages/ClientReportsPage'));
 const ProspectReportPage = page('ProspectReportPage', () => import('@/pages/ProspectReportPage'));
 const SharedAuditPage = page('SharedAuditPage', () => import('@/pages/SharedAuditPage'));
 
@@ -64,6 +69,11 @@ function AppRoutes() {
       <Route path="/agency" element={<AgencyPage />} />
       <Route path="/integrations" element={<AdminRoute permission="integrations.manage"><IntegrationsPage /></AdminRoute>} />
       <Route path="/prospects" element={<AdminRoute permission="prospects.manage"><ProspectsPage /></AdminRoute>} />
+      <Route path="/client-reports" element={<AdminRoute permission="business.edit"><ClientReportsPage /></AdminRoute>} />
+      <Route path="/listings" element={<ListingsPage />} />
+      <Route path="/rankings" element={<RankingsPage />} />
+      <Route path="/google" element={<GooglePage />} />
+      <Route path="/approvals" element={<ApprovalsPage />} />
       <Route path="/templates" element={<AdminRoute permission="reviews.reply"><TemplatesPage /></AdminRoute>} />
       <Route path="/automations" element={<AdminRoute permission="integrations.manage"><AutomationsPage /></AdminRoute>} />
       <Route path="/activity" element={<AdminRoute permission="activity.view"><ActivityPage /></AdminRoute>} />

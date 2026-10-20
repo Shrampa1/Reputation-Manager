@@ -29,6 +29,8 @@ import { ReviewRequestsPanel } from '@/components/reviews/ReviewRequestsPanel';
 import { useActionApp, useSourceActions } from '@/lib/automations';
 import { ActionChips, SendToAppButton } from '@/components/actions/AppActions';
 import { TemplatePicker } from '@/components/reviews/TemplatePicker';
+import { APPROVAL_BADGE, requestReplyApproval, useApprovalSettings } from '@/lib/approvals';
+import { isProfileReview, postReplyToGoogle, useGbpStatus } from '@/lib/gbp';
 import { AddReviewModal } from '@/components/reviews/AddReviewModal';
 import { BulkRequestModal } from '@/components/reviews/BulkRequestModal';
 import { QrCodeModal } from '@/components/reviews/QrCodeModal';
@@ -165,8 +167,39 @@ export function ReviewsPage() {
     }
   };
 
+  const { settings: approvalSettings } = useApprovalSettings();
+  const needsApproval = approvalSettings.replies;
+  const gbp = useGbpStatus();
+  const [postingToGoogle, setPostingToGoogle] = useState<string | null>(null);
+
+  /** Posts the saved reply on Google (reviews synced from the connected profile only). */
+  const postToGoogle = async (reviewId: string, text?: string) => {
+    setPostingToGoogle(reviewId);
+    try {
+      await postReplyToGoogle(reviewId, text);
+      showToast('Reply posted on Google');
+      return true;
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Couldn’t post on Google');
+      return false;
+    } finally {
+      setPostingToGoogle(null);
+    }
+  };
+
   const handlePostReply = async () => {
     if (!replyReview) return;
+    if (needsApproval) {
+      const { error: approvalError } = await requestReplyApproval(replyReview.id, draftReply);
+      showToast(approvalError ?? 'Sent to the client for approval');
+      closeReplyModal();
+      return;
+    }
+    if (gbp?.connected && isProfileReview(replyReview)) {
+      await postToGoogle(replyReview.id, draftReply);
+      closeReplyModal();
+      return;
+    }
     const { error } = await supabase
       .from('reviews')
       .update({ is_replied: true, ai_reply_draft: draftReply })
@@ -328,6 +361,17 @@ export function ReviewsPage() {
                           <Check className="w-3 h-3" /> Replied{review.replied_by ? ` by ${review.replied_by}` : ''}
                         </span>
                       )}
+                      {review.is_replied && review.platform_reply_at && <span className="badge bg-sky-50 text-sky-700">On Google</span>}
+                      {review.is_replied && !review.platform_reply_at && gbp?.connected && isProfileReview(review) && can('reviews.reply') && (
+                        <button
+                          onClick={() => postToGoogle(review.id)}
+                          disabled={postingToGoogle !== null}
+                          className="badge bg-white border border-sky-200 text-sky-700 hover:bg-sky-50"
+                          title={review.platform_reply_error ?? 'Post the saved reply on Google'}
+                        >
+                          {postingToGoogle === review.id ? 'Posting…' : 'Post reply on Google'}
+                        </button>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 mt-1">
                       <StarRating rating={review.rating} size="sm" />
@@ -336,6 +380,12 @@ export function ReviewsPage() {
                     </div>
                     <p className="text-sm text-slate-600 mt-2 leading-relaxed">{review.content}</p>
                     <ActionChips actions={actionsBySource[review.id]} appName={appName} />
+                    {review.reply_approval_status && review.reply_approval_status !== 'approved' && (
+                      <p className="mt-2 text-xs">
+                        <span className={`badge ${APPROVAL_BADGE[review.reply_approval_status].className}`}>{APPROVAL_BADGE[review.reply_approval_status].label}</span>
+                        {review.reply_approval_note && <span className="ml-2 text-amber-800">“{review.reply_approval_note}”</span>}
+                      </p>
+                    )}
 
                     <div className="flex items-center gap-2 mt-3">
                       <button
@@ -481,7 +531,7 @@ export function ReviewsPage() {
               <div className="flex items-center gap-2 pt-1">
                 <button onClick={handlePostReply} className="btn-primary flex-1">
                   <Check className="w-4 h-4" />
-                  Approve & Post
+                  {needsApproval ? 'Send for client approval' : gbp?.connected && replyReview && isProfileReview(replyReview) ? 'Approve & post on Google' : 'Approve & Post'}
                 </button>
                 <button onClick={() => setIsEditing(true)} className="btn-secondary">
                   <Edit3 className="w-4 h-4" />

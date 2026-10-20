@@ -4,6 +4,7 @@ import { Building2, Check, Copy, ExternalLink, ImagePlus, Loader2, Lock, Palette
 import { useLocationContext } from '@/context/LocationContext';
 import { Logo } from '@/components/Logo';
 import { SnapshotsPanel } from '@/components/agency/SnapshotsPanel';
+import { AgencyHealthPanel } from '@/components/agency/AgencyHealthPanel';
 import { relativeTime } from '@/lib/activity';
 import { SLUG_RE, portalUrl, saveAgency, setBusinessInPortal, slugify, uploadAgencyLogo, useAgency, type Agency, type AgencyClientRow } from '@/lib/agency';
 
@@ -70,6 +71,8 @@ export function AgencyPage() {
         }}
         onError={(text) => setBanner({ kind: 'error', text })}
       />
+
+      <AgencyHealthPanel />
 
       <SnapshotsPanel />
 

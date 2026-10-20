@@ -159,6 +159,14 @@ export function ReviewRequestsPanel({
                           <Lock className="w-3 h-3" /> Private feedback
                         </p>
                         <p className="text-sm text-slate-700 whitespace-pre-line">{r.feedback}</p>
+                        {r.reply_text && (
+                          <div className="mt-2 pl-3 border-l-2 border-emerald-300">
+                            <p className="text-[11px] font-semibold text-emerald-700">
+                              Replied{r.replied_by ? ` by ${r.replied_by}` : ''}{r.replied_at ? ` · ${relativeTime(r.replied_at)}` : ''}
+                            </p>
+                            <p className="text-xs text-slate-600 whitespace-pre-line mt-0.5">{r.reply_text}</p>
+                          </div>
+                        )}
                         {r.email ? (
                           <a href={`mailto:${r.email}`} className="inline-block mt-2 text-xs font-medium text-sky-600 hover:underline">
                             {r.channel === 'qr' ? 'Reply by email' : `Reply to ${r.customer_name.split(' ')[0]}`}

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { APPROVAL_BADGE } from '@/lib/approvals';
 import {
   CalendarDays,
   Plus,
@@ -339,6 +340,11 @@ export function SocialPage() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
                           <span className={`badge ${status.color}`}>{status.label}</span>
+                          {post.approval_status && post.status !== 'published' && (
+                            <span className={`badge ${APPROVAL_BADGE[post.approval_status].className}`} title={post.approval_note ?? undefined}>
+                              {APPROVAL_BADGE[post.approval_status].label}{post.approval_note ? `: “${post.approval_note.slice(0, 60)}”` : ''}
+                            </span>
+                          )}
                           {post.source === 'api' && post.source_note && (
                             <span className="badge bg-violet-50 text-violet-700" title="Created by a connected app. Check it, then schedule or publish.">
                               {post.source_note}

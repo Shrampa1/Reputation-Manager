@@ -123,7 +123,7 @@ export function SquareSettings({ integration, canManage, onSaved }: { integratio
         </fieldset>
       )}
       <p className="text-xs text-slate-500">
-        {m.requests_created ? `${m.requests_created} review request${m.requests_created === 1 ? '' : 's'} created from Square payments` : 'No payments received yet'}
+        {m.requests_created ? `${m.requests_created} review request${m.requests_created === 1 ? '' : 's'} created from Square payments` : m.last_payment_at ? 'No review requests created yet' : 'No payments received yet'}
         {m.last_payment_at ? ` · last payment ${relativeTime(m.last_payment_at)}` : ''}
         {m.skipped_no_email ? ` · ${m.skipped_no_email} skipped (no customer email)` : ''}
       </p>

@@ -1,5 +1,5 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Star, MapPin, CalendarDays, Inbox, Megaphone, LogOut, Plug, UserCog, Users, History, CreditCard, ShieldCheck, KeyRound, Briefcase, FileText, Workflow, Target, MessageSquareText } from 'lucide-react';
+import { LayoutDashboard, Star, MapPin, CalendarDays, Inbox, Megaphone, LogOut, Plug, UserCog, Users, History, CreditCard, ShieldCheck, KeyRound, Briefcase, FileText, Workflow, Target, MessageSquareText, ClipboardCheck, MapPinned, Crosshair, ListChecks, FileBarChart } from 'lucide-react';
 import { useBranding } from '@/hooks/useBranding';
 import type { Permission } from '@/lib/permissions';
 import { Logo } from '@/components/Logo';
@@ -12,7 +12,11 @@ const navItems: { label: string; path: string; icon: typeof Star; permission?: P
   // client: shown to view-only client logins (agency portal) too
   { label: 'Dashboard', path: '/', icon: LayoutDashboard, client: true },
   { label: 'Reviews', path: '/reviews', icon: Star, client: true },
+  { label: 'Approvals', path: '/approvals', icon: ClipboardCheck, permission: 'approvals.respond', client: true },
   { label: 'SEO & Website', path: '/seo', icon: MapPin },
+  { label: 'Google profile', path: '/google', icon: MapPinned },
+  { label: 'Local rankings', path: '/rankings', icon: Crosshair },
+  { label: 'Listings check', path: '/listings', icon: ListChecks },
   { label: 'Social', path: '/social', icon: CalendarDays },
   { label: 'Leads', path: '/leads', icon: Inbox },
   { label: 'Ads', path: '/ads', icon: Megaphone, permission: 'ads.view' },
@@ -23,6 +27,7 @@ const settingsItems = [
   { label: 'Integrations', path: '/integrations', icon: Plug, permission: 'integrations.manage' as Permission },
   { label: 'Automations', path: '/automations', icon: Workflow, permission: 'integrations.manage' as Permission },
   { label: 'Reply templates', path: '/templates', icon: MessageSquareText, permission: 'reviews.reply' as Permission },
+  { label: 'Client reports', path: '/client-reports', icon: FileBarChart, permission: 'business.edit' as Permission },
   { label: 'Team', path: '/team', icon: Users },
   { label: 'Role access', path: '/access', icon: KeyRound, ownerOnly: true },
   { label: 'Activity', path: '/activity', icon: History, permission: 'activity.view' as Permission },
