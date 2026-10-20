@@ -339,6 +339,11 @@ export function SocialPage() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
                           <span className={`badge ${status.color}`}>{status.label}</span>
+                          {post.source === 'api' && post.source_note && (
+                            <span className="badge bg-violet-50 text-violet-700" title="Created by a connected app. Check it, then schedule or publish.">
+                              {post.source_note}
+                            </span>
+                          )}
                           <span className="text-xs text-slate-400 flex items-center gap-1">
                             <Clock className="w-3 h-3" />
                             {post.scheduled_for

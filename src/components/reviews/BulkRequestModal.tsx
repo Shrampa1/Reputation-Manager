@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, Check, FileUp, Loader2, Send, ShieldCheck, Users, X } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
+import { contactsToList, useEmailableContacts } from '@/lib/contacts';
 import { useLocationContext } from '@/context/LocationContext';
 import {
   BULK_BATCH_SIZE,
@@ -45,6 +46,10 @@ export function BulkRequestModal({
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<BulkSendResult | null>(null);
+  const { contacts } = useEmailableContacts(isOpen);
+  const [contactTag, setContactTag] = useState('');
+  const contactTags = useMemo(() => [...new Set(contacts.flatMap((c) => c.tags))].sort(), [contacts]);
+  const pickedContacts = useMemo(() => (contactTag ? contacts.filter((c) => c.tags.includes(contactTag)) : contacts), [contacts, contactTag]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -169,6 +174,36 @@ export function BulkRequestModal({
               e.target.value = '';
             }}
           />
+
+          {contacts.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 p-3 rounded-xl bg-slate-50 border border-slate-100">
+              <Users className="w-4 h-4 text-slate-500 shrink-0" />
+              <span className="text-sm text-slate-700">Your contacts</span>
+              {contactTags.length > 0 && (
+                <select
+                  aria-label="Only contacts with this tag"
+                  value={contactTag}
+                  onChange={(e) => setContactTag(e.target.value)}
+                  className="input-field !w-auto !py-1 text-xs"
+                >
+                  <option value="">All tags</option>
+                  {contactTags.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setText(contactsToList(pickedContacts));
+                  setFileName(`${pickedContacts.length} contact${pickedContacts.length === 1 ? '' : 's'}${contactTag ? ` tagged “${contactTag}”` : ''}`);
+                  setError(null);
+                }}
+                disabled={pickedContacts.length === 0}
+                className="ml-auto btn-secondary !py-1.5 text-xs"
+              >
+                Use {pickedContacts.length} contact{pickedContacts.length === 1 ? '' : 's'}
+              </button>
+            </div>
+          )}
 
           <div>
             <label htmlFor="bulk-paste" className="block text-sm font-semibold text-slate-900 mb-1.5">…or paste your list</label>

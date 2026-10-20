@@ -1,5 +1,5 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Star, MapPin, CalendarDays, Inbox, Megaphone, LogOut, Plug, UserCog, Users, History, CreditCard, ShieldCheck, KeyRound, Briefcase, FileText } from 'lucide-react';
+import { LayoutDashboard, Star, MapPin, CalendarDays, Inbox, Megaphone, LogOut, Plug, UserCog, Users, History, CreditCard, ShieldCheck, KeyRound, Briefcase, FileText, Workflow } from 'lucide-react';
 import { useBranding } from '@/hooks/useBranding';
 import type { Permission } from '@/lib/permissions';
 import { Logo } from '@/components/Logo';
@@ -20,6 +20,7 @@ const navItems: { label: string; path: string; icon: typeof Star; permission?: P
 
 const settingsItems = [
   { label: 'Integrations', path: '/integrations', icon: Plug, permission: 'integrations.manage' as Permission },
+  { label: 'Automations', path: '/automations', icon: Workflow, permission: 'integrations.manage' as Permission },
   { label: 'Team', path: '/team', icon: Users },
   { label: 'Role access', path: '/access', icon: KeyRound, ownerOnly: true },
   { label: 'Activity', path: '/activity', icon: History, permission: 'activity.view' as Permission },

@@ -26,6 +26,8 @@ import { Modal } from '@/components/ui/Modal';
 import { ReviewRequestModal } from '@/components/reviews/ReviewRequestModal';
 import { ReviewInsightsPanel } from '@/components/reviews/ReviewInsightsPanel';
 import { ReviewRequestsPanel } from '@/components/reviews/ReviewRequestsPanel';
+import { useActionApp, useSourceActions } from '@/lib/automations';
+import { ActionChips, SendToAppButton } from '@/components/actions/AppActions';
 import { AddReviewModal } from '@/components/reviews/AddReviewModal';
 import { BulkRequestModal } from '@/components/reviews/BulkRequestModal';
 import { QrCodeModal } from '@/components/reviews/QrCodeModal';
@@ -95,6 +97,10 @@ export function ReviewsPage() {
       return true;
     });
   }, [reviews, activeFilter, search]);
+  const { appName } = useActionApp();
+  // Status of anything sent to the connected app, for the reviews on screen
+  const shownReviewIds = useMemo(() => filteredReviews.slice(0, 300).map((r) => r.id), [filteredReviews]);
+  const { actionsBySource, reload: reloadActions } = useSourceActions(shownReviewIds);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -326,6 +332,7 @@ export function ReviewsPage() {
                       <PlatformLabel platform={review.platform} />
                     </div>
                     <p className="text-sm text-slate-600 mt-2 leading-relaxed">{review.content}</p>
+                    <ActionChips actions={actionsBySource[review.id]} appName={appName} />
 
                     <div className="flex items-center gap-2 mt-3">
                       <button
@@ -346,6 +353,19 @@ export function ReviewsPage() {
                         >
                           View on {review.platform === 'google' ? 'Google' : 'site'} <ExternalLink className="w-3 h-3" />
                         </a>
+                      )}
+                      {can('actions.send') && (
+                        <SendToAppButton
+                          appName={appName}
+                          sourceType="review"
+                          sourceId={review.id}
+                          suggestedTitle={
+                            review.rating <= 3
+                              ? `Reply to ${review.rating}★ review from ${review.author_name}`
+                              : `Thank ${review.author_name} for their ${review.rating}★ review`
+                          }
+                          onSent={reloadActions}
+                        />
                       )}
                     </div>
                   </div>

@@ -35,6 +35,7 @@ const BillingPage = page('BillingPage', () => import('@/pages/BillingPage'));
 const PlatformAdminPage = page('PlatformAdminPage', () => import('@/pages/PlatformAdminPage'));
 const LegalPage = page('LegalPage', () => import('@/pages/LegalPage'));
 const RoleAccessPage = page('RoleAccessPage', () => import('@/pages/RoleAccessPage'));
+const AutomationsPage = page('AutomationsPage', () => import('@/pages/AutomationsPage'));
 
 function PageLoading() {
   return (
@@ -58,6 +59,7 @@ function AppRoutes() {
       <Route path="/ads" element={<AdminRoute permission="ads.view"><AdsPage /></AdminRoute>} />
       <Route path="/agency" element={<AgencyPage />} />
       <Route path="/integrations" element={<AdminRoute permission="integrations.manage"><IntegrationsPage /></AdminRoute>} />
+      <Route path="/automations" element={<AdminRoute permission="integrations.manage"><AutomationsPage /></AdminRoute>} />
       <Route path="/activity" element={<AdminRoute permission="activity.view"><ActivityPage /></AdminRoute>} />
       <Route path="/access" element={<RoleAccessPage />} />
       <Route path="/settings" element={<SettingsPage />} />

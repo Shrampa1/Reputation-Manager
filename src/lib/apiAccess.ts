@@ -12,6 +12,7 @@ export const WEBHOOK_EVENTS = [
   { id: 'review_request.clicked', label: 'Went to review page', hint: 'A customer clicked through to your Google review page' },
   { id: 'review_request.sent', label: 'Request sent', hint: 'A review request email went out' },
   { id: 'lead.created', label: 'New lead', hint: 'A lead was added' },
+  { id: 'action.requested', label: 'Action requested', hint: 'Create a task, lead or project in your app (Automations and "Send to" buttons)' },
 ] as const;
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number]['id'];
 

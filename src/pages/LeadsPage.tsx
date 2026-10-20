@@ -18,6 +18,8 @@ import {
 import { useLeads, useLocation } from '@/hooks/useSupabaseData';
 import { useLocationContext } from '@/context/LocationContext';
 import { NewLeadModal } from '@/components/leads/NewLeadModal';
+import { useActionApp, useSourceActions } from '@/lib/automations';
+import { ActionChips, SendToAppButton } from '@/components/actions/AppActions';
 import { STAGES } from '@/lib/leads';
 import { ReviewRequestModal } from '@/components/reviews/ReviewRequestModal';
 import type { LeadChannel, LeadStage, Lead } from '@/types';
@@ -74,6 +76,10 @@ export function LeadsPage() {
     setToast(msg);
     setTimeout(() => setToast(null), 2500);
   };
+
+  const { appName } = useActionApp();
+  const leadIds = useMemo(() => leads.map((l) => l.id), [leads]);
+  const { actionsBySource, reload: reloadActions } = useSourceActions(leadIds);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -239,6 +245,19 @@ export function LeadsPage() {
                             >
                               <Star className="w-3.5 h-3.5" /> Ask for a review
                             </button>
+                          )}
+
+                          <ActionChips actions={actionsBySource[lead.id]} appName={appName} />
+                          {can('actions.send') && !actionsBySource[lead.id]?.length && (
+                            <SendToAppButton
+                              compact
+                              appName={appName}
+                              sourceType="lead"
+                              sourceId={lead.id}
+                              defaultAction="create_lead"
+                              suggestedTitle={`New enquiry: ${lead.customer_name}`}
+                              onSent={reloadActions}
+                            />
                           )}
 
                           <div className="flex items-center justify-between mt-2.5 pt-2.5 border-t border-slate-50">

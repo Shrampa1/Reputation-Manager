@@ -102,6 +102,9 @@ export interface SocialPost {
   external_post_id: string | null;
   external_url: string | null;
   last_error: string | null;
+  /** 'api' when a connected app (e.g. S.Ops) created the draft; source_note says what it was */
+  source?: 'app' | 'api';
+  source_note?: string | null;
   created_at: string;
   updated_at: string;
 }

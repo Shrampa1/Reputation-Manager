@@ -3,6 +3,8 @@ import { AlertCircle, Inbox as InboxIcon, Loader2, Lock, Mail, QrCode } from 'lu
 import { cancelScheduledRequest, requestOutcome } from '@/lib/reviewRequests';
 import { useLocationContext } from '@/context/LocationContext';
 import { relativeTime } from '@/lib/activity';
+import { useActionApp, useSourceActions } from '@/lib/automations';
+import { ActionChips, SendToAppButton } from '@/components/actions/AppActions';
 import type { ReviewRequest } from '@/types';
 
 const toneClass = {
@@ -28,6 +30,9 @@ export function ReviewRequestsPanel({
   const { can } = useLocationContext();
   const [cancelling, setCancelling] = useState<string | null>(null);
   const [cancelError, setCancelError] = useState<string | null>(null);
+  const { appName } = useActionApp();
+  const answeredIds = useMemo(() => requests.filter((r) => r.rating !== null || r.feedback).map((r) => r.id), [requests]);
+  const { actionsBySource, reload: reloadActions } = useSourceActions(answeredIds);
 
   // The list refreshes itself through the realtime subscription once the status changes
   const cancel = async (id: string) => {
@@ -161,6 +166,22 @@ export function ReviewRequestsPanel({
                         ) : (
                           <p className="mt-2 text-xs text-slate-400">Left anonymously via your QR code, so there’s no one to reply to.</p>
                         )}
+                      </div>
+                    )}
+                    <ActionChips actions={actionsBySource[r.id]} appName={appName} />
+                    {(r.rating !== null || r.feedback) && can('actions.send') && (
+                      <div className="mt-2">
+                        <SendToAppButton
+                          appName={appName}
+                          sourceType="review_request"
+                          sourceId={r.id}
+                          suggestedTitle={
+                            r.rating !== null && r.rating >= 4
+                              ? `Thank ${r.customer_name} and ask for a referral`
+                              : `Unhappy client: ${r.customer_name}${r.rating !== null ? ` (${r.rating}★)` : ''}`
+                          }
+                          onSent={reloadActions}
+                        />
                       </div>
                     )}
                   </div>
