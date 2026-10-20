@@ -36,6 +36,10 @@ const PlatformAdminPage = page('PlatformAdminPage', () => import('@/pages/Platfo
 const LegalPage = page('LegalPage', () => import('@/pages/LegalPage'));
 const RoleAccessPage = page('RoleAccessPage', () => import('@/pages/RoleAccessPage'));
 const AutomationsPage = page('AutomationsPage', () => import('@/pages/AutomationsPage'));
+const ProspectsPage = page('ProspectsPage', () => import('@/pages/ProspectsPage'));
+const TemplatesPage = page('TemplatesPage', () => import('@/pages/TemplatesPage'));
+const ProspectReportPage = page('ProspectReportPage', () => import('@/pages/ProspectReportPage'));
+const SharedAuditPage = page('SharedAuditPage', () => import('@/pages/SharedAuditPage'));
 
 function PageLoading() {
   return (
@@ -59,6 +63,8 @@ function AppRoutes() {
       <Route path="/ads" element={<AdminRoute permission="ads.view"><AdsPage /></AdminRoute>} />
       <Route path="/agency" element={<AgencyPage />} />
       <Route path="/integrations" element={<AdminRoute permission="integrations.manage"><IntegrationsPage /></AdminRoute>} />
+      <Route path="/prospects" element={<AdminRoute permission="prospects.manage"><ProspectsPage /></AdminRoute>} />
+      <Route path="/templates" element={<AdminRoute permission="reviews.reply"><TemplatesPage /></AdminRoute>} />
       <Route path="/automations" element={<AdminRoute permission="integrations.manage"><AutomationsPage /></AdminRoute>} />
       <Route path="/activity" element={<AdminRoute permission="activity.view"><ActivityPage /></AdminRoute>} />
       <Route path="/access" element={<RoleAccessPage />} />
@@ -85,6 +91,8 @@ function App() {
       <Route path="/signup" element={<SignupPage />} />
       {/* Public: customers open this from a review-request email */}
       <Route path="/r/:token" element={<ReviewLandingPage />} />
+      {/* Public: a prospect audit an agency shared */}
+      <Route path="/a/:token" element={<SharedAuditPage />} />
       {/* Public: customers scan the business's counter QR code */}
       <Route path="/q/:key" element={<ReviewLandingPage mode="qr" />} />
       {/* Public legal pages (linked from the landing page footer) */}
@@ -98,6 +106,19 @@ function App() {
           <ProtectedRoute>
             <BusinessGate>
               <ReportPage />
+            </BusinessGate>
+          </ProtectedRoute>
+        }
+      />
+      {/* A prospect audit report, full page (print-ready) */}
+      <Route
+        path="/prospects/:id"
+        element={
+          <ProtectedRoute>
+            <BusinessGate>
+              <AdminRoute permission="prospects.manage">
+                <ProspectReportPage />
+              </AdminRoute>
             </BusinessGate>
           </ProtectedRoute>
         }

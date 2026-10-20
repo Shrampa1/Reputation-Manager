@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Briefcase, LayoutDashboard, Star, MapPin, CalendarDays, Inbox, LogOut, Megaphone, Plug, Workflow } from 'lucide-react';
+import { Briefcase, LayoutDashboard, Star, MapPin, CalendarDays, Inbox, LogOut, Megaphone, Plug, Target, Workflow } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { useAuth } from '@/context/AuthContext';
 import { getInitials } from '@/lib/user';
@@ -101,6 +101,20 @@ export function MobileHeader() {
           }
         >
           <Plug className="w-4 h-4" />
+        </NavLink>
+        )}
+        {can('prospects.manage') && (
+        <NavLink
+          to="/prospects"
+          title="Prospect audits"
+          aria-label="Prospect audits"
+          className={({ isActive }) =>
+            `flex items-center justify-center w-8 h-8 rounded-lg transition-colors ${
+              isActive ? 'bg-sky-50 text-sky-600' : 'text-slate-400 hover:text-slate-600'
+            }`
+          }
+        >
+          <Target className="w-4 h-4" />
         </NavLink>
         )}
         {can('integrations.manage') && (

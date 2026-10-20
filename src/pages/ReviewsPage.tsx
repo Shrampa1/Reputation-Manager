@@ -28,6 +28,7 @@ import { ReviewInsightsPanel } from '@/components/reviews/ReviewInsightsPanel';
 import { ReviewRequestsPanel } from '@/components/reviews/ReviewRequestsPanel';
 import { useActionApp, useSourceActions } from '@/lib/automations';
 import { ActionChips, SendToAppButton } from '@/components/actions/AppActions';
+import { TemplatePicker } from '@/components/reviews/TemplatePicker';
 import { AddReviewModal } from '@/components/reviews/AddReviewModal';
 import { BulkRequestModal } from '@/components/reviews/BulkRequestModal';
 import { QrCodeModal } from '@/components/reviews/QrCodeModal';
@@ -83,6 +84,7 @@ export function ReviewsPage() {
   const [replyReview, setReplyReview] = useState<Review | null>(null);
   const [draftReply, setDraftReply] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [fromTemplate, setFromTemplate] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [requestModalOpen, setRequestModalOpen] = useState(false);
@@ -153,6 +155,7 @@ export function ReviewsPage() {
       }
       setDraftReply(data.aiReplyDraft);
       setReplyReview({ ...replyReview, ai_reply_draft: data.aiReplyDraft });
+      setFromTemplate(false);
       showToast('AI draft generated successfully');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to generate reply';
@@ -322,7 +325,7 @@ export function ReviewsPage() {
                       <span className="text-xs text-slate-400">{formatDate(review.review_date)}</span>
                       {review.is_replied && (
                         <span className="badge bg-emerald-50 text-emerald-600">
-                          <Check className="w-3 h-3" /> Replied
+                          <Check className="w-3 h-3" /> Replied{review.replied_by ? ` by ${review.replied_by}` : ''}
                         </span>
                       )}
                     </div>
@@ -405,8 +408,22 @@ export function ReviewsPage() {
                 <div className="flex items-center gap-1.5">
                   <Sparkles className="w-4 h-4 text-sky-500" />
                   <span className="text-sm font-semibold text-slate-900">Suggested Reply</span>
-                  {draftReply && <span className="badge bg-sky-50 text-sky-600">AI Generated</span>}
+                  {draftReply && <span className="badge bg-sky-50 text-sky-600">{fromTemplate ? 'From a template' : 'AI Generated'}</span>}
                 </div>
+                <div className="flex items-center gap-3">
+                {!replyReview.is_replied && (
+                  <TemplatePicker
+                    kind="review_reply"
+                    rating={replyReview.rating}
+                    customerName={replyReview.author_name}
+                    businessName={location?.name ?? ''}
+                    onPick={(text) => {
+                      setDraftReply(text);
+                      setFromTemplate(true);
+                      setIsEditing(true);
+                    }}
+                  />
+                )}
                 {draftReply && (
                   <button
                     onClick={() => setIsEditing(!isEditing)}
@@ -416,6 +433,7 @@ export function ReviewsPage() {
                     {isEditing ? 'Preview' : 'Edit'}
                   </button>
                 )}
+                </div>
               </div>
 
               {!draftReply && !generating && (

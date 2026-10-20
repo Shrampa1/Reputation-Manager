@@ -18,7 +18,8 @@ export type Permission =
   | 'ads.view'
   | 'ads.manage'
   | 'shop.manage'
-  | 'actions.send';
+  | 'actions.send'
+  | 'prospects.manage';
 
 export interface PermissionInfo {
   permission: Permission;
@@ -53,6 +54,7 @@ export const FALLBACK_DEFAULTS: Record<Permission, { owner: boolean; admin: bool
   'ads.manage': { owner: true, admin: true, member: false },
   'shop.manage': { owner: true, admin: true, member: false },
   'actions.send': { owner: true, admin: true, member: true },
+  'prospects.manage': { owner: true, admin: true, member: false },
 };
 
 export function defaultPermissions(role: ViewerRole | null): Record<Permission, boolean> {

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Building2, Check, Copy, ExternalLink, ImagePlus, Loader2, Lock, Palette, Star, UserPlus, X } from 'lucide-react';
 import { useLocationContext } from '@/context/LocationContext';
 import { Logo } from '@/components/Logo';
+import { SnapshotsPanel } from '@/components/agency/SnapshotsPanel';
 import { relativeTime } from '@/lib/activity';
 import { SLUG_RE, portalUrl, saveAgency, setBusinessInPortal, slugify, uploadAgencyLogo, useAgency, type Agency, type AgencyClientRow } from '@/lib/agency';
 
@@ -69,6 +70,8 @@ export function AgencyPage() {
         }}
         onError={(text) => setBanner({ kind: 'error', text })}
       />
+
+      <SnapshotsPanel />
 
       <ClientBusinesses
         rows={rows}
