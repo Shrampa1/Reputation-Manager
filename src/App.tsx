@@ -13,6 +13,7 @@ import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage';
 import { ResetPasswordPage } from '@/pages/ResetPasswordPage';
 import { PortalPage } from '@/pages/PortalPage';
 import { BrandingEffect } from '@/hooks/useBranding';
+import { LiveChatWatcher } from '@/components/livechat/LiveChatWatcher';
 
 // Pages are split into their own files and downloaded when first opened
 const page = <K extends string, P extends object>(name: K, load: () => Promise<Record<K, React.ComponentType<P>>>) =>
@@ -39,6 +40,9 @@ const AutomationsPage = page('AutomationsPage', () => import('@/pages/Automation
 const ProspectsPage = page('ProspectsPage', () => import('@/pages/ProspectsPage'));
 const TemplatesPage = page('TemplatesPage', () => import('@/pages/TemplatesPage'));
 const WebsiteChatPage = page('WebsiteChatPage', () => import('@/pages/WebsiteChatPage'));
+const LiveChatInboxPage = page('LiveChatInboxPage', () => import('@/pages/LiveChatInboxPage'));
+const LiveChatVisitorsPage = page('LiveChatVisitorsPage', () => import('@/pages/LiveChatVisitorsPage'));
+const LiveChatRepliesPage = page('LiveChatRepliesPage', () => import('@/pages/LiveChatRepliesPage'));
 const ApprovalsPage = page('ApprovalsPage', () => import('@/pages/ApprovalsPage'));
 const GooglePage = page('GooglePage', () => import('@/pages/GooglePage'));
 const RankingsPage = page('RankingsPage', () => import('@/pages/RankingsPage'));
@@ -66,7 +70,10 @@ function AppRoutes() {
       <Route path="/seo" element={<SeoPage />} />
       <Route path="/social" element={<SocialPage />} />
       <Route path="/leads" element={<LeadsPage />} />
-      <Route path="/chat" element={<WebsiteChatPage />} />
+      <Route path="/chat" element={<LiveChatInboxPage />} />
+      <Route path="/chat/visitors" element={<LiveChatVisitorsPage />} />
+      <Route path="/chat/replies" element={<LiveChatRepliesPage />} />
+      <Route path="/chat/settings" element={<WebsiteChatPage />} />
       <Route path="/ads" element={<AdminRoute permission="ads.view"><AdsPage /></AdminRoute>} />
       <Route path="/agency" element={<AgencyPage />} />
       <Route path="/integrations" element={<AdminRoute permission="integrations.manage"><IntegrationsPage /></AdminRoute>} />
@@ -152,6 +159,7 @@ function App() {
           <ProtectedRoute>
             <BusinessGate>
               <div className="flex min-h-screen bg-slate-50">
+                <LiveChatWatcher />
                 <Sidebar />
                 <div className="flex-1 min-w-0 flex flex-col">
                   <MobileHeader />

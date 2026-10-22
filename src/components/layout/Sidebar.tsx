@@ -7,6 +7,7 @@ import { BusinessSwitcher } from '@/components/BusinessSwitcher';
 import { useAuth } from '@/context/AuthContext';
 import { useLocationContext } from '@/context/LocationContext';
 import { displayName, getInitials } from '@/lib/user';
+import { useChatBadge } from '@/lib/liveChat';
 
 const navItems: { label: string; path: string; icon: typeof Star; permission?: Permission; client?: boolean }[] = [
   // client: shown to view-only client logins (agency portal) too
@@ -19,7 +20,7 @@ const navItems: { label: string; path: string; icon: typeof Star; permission?: P
   { label: 'Listings check', path: '/listings', icon: ListChecks },
   { label: 'Social', path: '/social', icon: CalendarDays },
   { label: 'Leads', path: '/leads', icon: Inbox },
-  { label: 'Website chat', path: '/chat', icon: MessagesSquare },
+  { label: 'Live chat', path: '/chat', icon: MessagesSquare },
   { label: 'Ads', path: '/ads', icon: Megaphone, permission: 'ads.view' },
   { label: 'Prospects', path: '/prospects', icon: Target, permission: 'prospects.manage' },
 ];
@@ -41,6 +42,7 @@ export function Sidebar() {
   const { organization, can, isOwnerLike, isPlatformAdmin, isClient, hasAgencyPlan } = useLocationContext();
   const branding = useBranding();
   const navigate = useNavigate();
+  const chatWaiting = useChatBadge();
 
   const handleSignOut = async () => {
     await signOut();
@@ -68,6 +70,11 @@ export function Sidebar() {
           >
             <item.icon className="w-[18px] h-[18px] shrink-0" />
             <span>{item.label}</span>
+            {item.path === '/chat' && chatWaiting > 0 && (
+              <span className="ml-auto inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-rose-500 text-white text-[11px] font-semibold" aria-label={`${chatWaiting} chats waiting`}>
+                {chatWaiting}
+              </span>
+            )}
           </NavLink>
         ))}
         {isClient && can('reports.download') && (
