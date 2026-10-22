@@ -45,8 +45,12 @@ const LiveChatInboxPage = page('LiveChatInboxPage', () => import('@/pages/LiveCh
 const LiveChatVisitorsPage = page('LiveChatVisitorsPage', () => import('@/pages/LiveChatVisitorsPage'));
 const LiveChatRepliesPage = page('LiveChatRepliesPage', () => import('@/pages/LiveChatRepliesPage'));
 const LiveChatKnowledgePage = page('LiveChatKnowledgePage', () => import('@/pages/LiveChatKnowledgePage'));
+const LiveChatAgentPage = page('LiveChatAgentPage', () => import('@/pages/LiveChatAgentPage'));
 const LiveChatAnalyticsPage = page('LiveChatAnalyticsPage', () => import('@/pages/LiveChatAnalyticsPage'));
 const HelpCenterPage = page('HelpCenterPage', () => import('@/pages/HelpCenterPage'));
+const LeadFormsPage = page('LeadFormsPage', () => import('@/pages/LeadFormsPage'));
+const LeadFormEditorPage = page('LeadFormEditorPage', () => import('@/pages/LeadFormEditorPage'));
+const PublicFormPage = page('PublicFormPage', () => import('@/pages/PublicFormPage'));
 const ApprovalsPage = page('ApprovalsPage', () => import('@/pages/ApprovalsPage'));
 const GooglePage = page('GooglePage', () => import('@/pages/GooglePage'));
 const RankingsPage = page('RankingsPage', () => import('@/pages/RankingsPage'));
@@ -74,10 +78,13 @@ function AppRoutes() {
       <Route path="/seo" element={<SeoPage />} />
       <Route path="/social" element={<SocialPage />} />
       <Route path="/leads" element={<LeadsPage />} />
+      <Route path="/forms" element={<LeadFormsPage />} />
+      <Route path="/forms/:id" element={<LeadFormEditorPage />} />
       <Route path="/chat" element={<LiveChatInboxPage />} />
       <Route path="/chat/visitors" element={<LiveChatVisitorsPage />} />
       <Route path="/chat/replies" element={<LiveChatRepliesPage />} />
       <Route path="/chat/knowledge" element={<LiveChatKnowledgePage />} />
+      <Route path="/chat/agent" element={<LiveChatAgentPage />} />
       <Route path="/chat/analytics" element={<LiveChatAnalyticsPage />} />
       <Route path="/chat/settings" element={<WebsiteChatPage />} />
       <Route path="/ads" element={<AdminRoute permission="ads.view"><AdsPage /></AdminRoute>} />
@@ -116,6 +123,8 @@ function App() {
       <Route path="/signup" element={<SignupPage />} />
       {/* Public: customers open this from a review-request email */}
       <Route path="/r/:token" element={<ReviewLandingPage />} />
+      {/* Public: a lead form's landing page (or ?embed=1 for websites) */}
+      <Route path="/f/:slug" element={<PublicFormPage />} />
       {/* Public: a business's help centre (Live chat knowledge base) */}
       <Route path="/help/:key" element={<HelpCenterPage />} />
       <Route path="/help/:key/:articleId" element={<HelpCenterPage />} />

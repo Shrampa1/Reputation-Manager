@@ -8,6 +8,8 @@ import { fetchTeam } from '@/lib/team';
 import { isUnread, needsTeam, useCannedResponses, useInbox, visitorLabel, type InboxConversation } from '@/lib/liveChat';
 import { useWebsiteChat } from '@/lib/websiteChat';
 import { LiveChatHeader } from '@/components/livechat/LiveChatHeader';
+import { ChannelIcon } from '@/components/livechat/ChannelIcon';
+import { CHANNELS } from '@/lib/aiAgent';
 import { ConversationView } from '@/components/livechat/ConversationView';
 import { VisitorPanel } from '@/components/livechat/VisitorPanel';
 import type { TeamMember } from '@/types';
@@ -27,6 +29,7 @@ export function LiveChatInboxPage() {
   const [params, setParams] = useSearchParams();
   const [filter, setFilter] = useState<Filter>('open');
   const [query, setQuery] = useState('');
+  const [channel, setChannel] = useState<string>('all');
   const selectedId = params.get('c');
 
   useEffect(() => {
@@ -52,10 +55,11 @@ export function LiveChatInboxPage() {
         if (filter === 'resolved') return c.status === 'resolved';
         return true;
       })
+      .filter((c) => channel === 'all' || c.channel === channel)
       .filter((c) => !q || [c.visitor_name, c.visitor_email, c.visitor_phone, c.last_message_preview, ...c.tags].some((v) => v?.toLowerCase().includes(q)))
       // Chats waiting for the team first
       .sort((a, b) => Number(needsTeam(b)) - Number(needsTeam(a)));
-  }, [conversations, filter, query, user]);
+  }, [conversations, filter, query, user, channel]);
 
   const selected = conversations.find((c) => c.id === selectedId) ?? null;
   const open = useCallback((id: string | null) => setParams(id ? { c: id } : {}, { replace: true }), [setParams]);
@@ -77,6 +81,12 @@ export function LiveChatInboxPage() {
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input className="input-field !pl-9 text-sm" placeholder="Search name, email, message, tag" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search chats" />
             </div>
+            {new Set(conversations.map((c) => c.channel)).size > 1 && (
+              <select className="input-field !py-1 text-sm" value={channel} onChange={(e) => setChannel(e.target.value)} aria-label="Channel">
+                <option value="all">All channels</option>
+                {CHANNELS.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+              </select>
+            )}
             <div className="flex gap-1 flex-wrap">
               {filters.map(([key, label]) => (
                 <button
@@ -148,6 +158,7 @@ function ConversationItem({ c, active, team, me, onClick }: { c: InboxConversati
             {visitorLabel(c).slice(0, 1).toUpperCase()}
           </div>
           {unread && <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-sky-500 border-2 border-white" aria-label="Unread" />}
+          {c.channel !== 'web_chat' && <span className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5"><ChannelIcon channel={c.channel} /></span>}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">

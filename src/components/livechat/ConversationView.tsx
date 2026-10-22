@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Bot, CheckCircle2, Download, FileText, Hand, Headset, Loader2, Mail, MoreHorizontal, Paperclip, Phone, RotateCcw, Send, StickyNote } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Bot, CheckCircle2, Download, FileText, Hand, Headset, Loader2, Mail, MoreHorizontal, Paperclip, Phone, RotateCcw, Send, Sparkles, StickyNote, X } from 'lucide-react';
 import {
   addChatNote,
   assignChat,
@@ -24,6 +24,8 @@ import {
   type LiveMessage,
 } from '@/lib/liveChat';
 import { startOutbound, useCall } from '@/lib/calls';
+import { assistConversation, channelLabel, flushChannelOutbox } from '@/lib/aiAgent';
+import { ChannelIcon } from '@/components/livechat/ChannelIcon';
 import type { TeamMember } from '@/types';
 
 const time = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -56,6 +58,28 @@ export function ConversationView({ orgId, businessName, callsOn, convo, team, ca
   const [menu, setMenu] = useState(false);
   const [info, setInfo] = useState<string | null>(null);
   const call = useCall();
+  const [assisting, setAssisting] = useState<'summary' | 'reply' | null>(null);
+  const [summary, setSummary] = useState<string | null>(null);
+  // Messenger / Instagram replies go out through the outbox: send them straight away
+  const social = convo.channel === 'messenger' || convo.channel === 'instagram';
+  const deliver = () => { if (social) flushChannelOutbox(); };
+
+  const assist = async (kind: 'summary' | 'reply') => {
+    setAssisting(kind);
+    setError(null);
+    try {
+      const { text: out } = await assistConversation(convo.id, kind);
+      if (kind === 'summary') setSummary(out);
+      else {
+        setAsNote(false);
+        setText(out);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'The AI assistant isn’t available right now.');
+    } finally {
+      setAssisting(null);
+    }
+  };
   const lastTyping = useRef(0);
   const unread = isUnread(convo);
 
@@ -102,6 +126,7 @@ export function ConversationView({ orgId, businessName, callsOn, convo, team, ca
     try {
       const msg: LiveMessage = asNote ? await addChatNote(convo.id, body) : await replyToChat(convo.id, body);
       add(msg);
+      if (!asNote) deliver();
       setText('');
       if (!asNote) {
         onPatch({
@@ -125,6 +150,7 @@ export function ConversationView({ orgId, businessName, callsOn, convo, team, ca
     try {
       const msg = await sendChatFile(orgId, convo.id, file);
       add(msg);
+      deliver();
       onPatch({ id: convo.id, mode: 'agent', needs_agent: false, status: 'open', assigned_to: convo.assigned_to ?? me ?? null, last_message_at: msg.created_at, last_message_preview: msg.body, last_message_sender: 'agent' });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Couldn’t send the file');
@@ -163,15 +189,16 @@ export function ConversationView({ orgId, businessName, callsOn, convo, team, ca
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-slate-900 truncate">{visitorLabel(convo)}</p>
+          <p className="text-sm font-semibold text-slate-900 truncate inline-flex items-center gap-1.5"><ChannelIcon channel={convo.channel} /> {visitorLabel(convo)}</p>
           <p className="text-xs text-slate-500">
+            {channelLabel(convo.channel)} · 
             {convo.status === 'resolved' ? 'Resolved' : convo.mode === 'agent' ? 'Team is chatting (AI paused)' : 'AI is answering'}
             {convo.needs_agent && ' · wants a person'}
           </p>
         </div>
         {canReply && (
           <div className="flex items-center gap-2 flex-wrap">
-            {callsOn && convo.status === 'open' && (
+            {callsOn && convo.status === 'open' && convo.channel === 'web_chat' && (
               <button
                 type="button"
                 disabled={Boolean(call)}
@@ -228,6 +255,24 @@ export function ConversationView({ orgId, businessName, callsOn, convo, team, ca
           </div>
         )}
       </div>
+
+      {canReply && (
+        <div className="px-4 py-2 border-b border-slate-100 flex items-center gap-2 flex-wrap text-xs">
+          <span className="text-slate-500 inline-flex items-center gap-1"><Sparkles className="w-3.5 h-3.5 text-violet-500" /> AI assistant:</span>
+          <button type="button" disabled={Boolean(assisting)} onClick={() => assist('summary')} className="rounded-full border border-slate-200 px-2.5 py-1 font-medium text-slate-700 hover:bg-slate-50 inline-flex items-center gap-1">
+            {assisting === 'summary' && <Loader2 className="w-3 h-3 animate-spin" />} Summarize
+          </button>
+          <button type="button" disabled={Boolean(assisting)} onClick={() => assist('reply')} className="rounded-full border border-slate-200 px-2.5 py-1 font-medium text-slate-700 hover:bg-slate-50 inline-flex items-center gap-1">
+            {assisting === 'reply' && <Loader2 className="w-3 h-3 animate-spin" />} Suggest a reply
+          </button>
+        </div>
+      )}
+      {summary && (
+        <div className="px-4 py-3 border-b border-violet-100 bg-violet-50/60 text-sm text-slate-800 flex gap-2">
+          <p className="flex-1 whitespace-pre-wrap">{summary}</p>
+          <button type="button" onClick={() => setSummary(null)} className="text-slate-400 hover:text-slate-700 self-start" aria-label="Close summary"><X className="w-4 h-4" /></button>
+        </div>
+      )}
 
       {convo.needs_agent && convo.status === 'open' && (
         <div className="px-4 py-2 bg-amber-50 border-b border-amber-200 text-sm text-amber-900 flex items-center gap-2">
@@ -335,6 +380,11 @@ function MessageBubble({ m }: { m: LiveMessage }) {
       <span className="text-[11px] text-slate-400 mb-0.5 px-1">
         {visitor ? 'Visitor' : m.sender === 'ai' ? 'AI assistant' : m.author_name ?? 'Team'} · {time(m.created_at)}
       </span>
+      {(m.meta?.delivery as { status?: string } | undefined)?.status === 'failed' && (
+        <span className="text-[11px] text-rose-600 mb-0.5 px-1 inline-flex items-center gap-1 max-w-[80%]">
+          <AlertCircle className="w-3 h-3 shrink-0" /> Not delivered: {String((m.meta?.delivery as { error?: string }).error ?? 'unknown error')}
+        </span>
+      )}
       {m.meta?.attachment ? <AttachmentView att={m.meta.attachment as ChatAttachment} mine={!visitor} /> : <p className={`max-w-[80%] text-sm rounded-2xl px-3 py-2 whitespace-pre-wrap ${
         visitor ? 'bg-white border border-slate-200 text-slate-800 rounded-bl-md'
           : m.sender === 'ai' ? 'bg-sky-50 border border-sky-100 text-slate-800 rounded-br-md'
@@ -345,7 +395,8 @@ function MessageBubble({ m }: { m: LiveMessage }) {
 }
 
 function AttachmentView({ att, mine }: { att: ChatAttachment; mine: boolean }) {
-  const url = useChatFileUrl(att.path);
+  const signed = useChatFileUrl(att.path);
+  const url = att.url ?? signed;
   const isImage = att.type.startsWith('image/');
   if (isImage && url) {
     return (

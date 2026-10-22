@@ -14,6 +14,7 @@ import {
   LayoutGrid,
   List,
   Users,
+  ClipboardList,
 } from 'lucide-react';
 import { useLeads, useLocation } from '@/hooks/useSupabaseData';
 import { useLocationContext } from '@/context/LocationContext';
@@ -28,12 +29,14 @@ const channelIconMap: Record<LeadChannel, typeof MessageCircle> = {
   web_chat: MessageCircle,
   sms: Smartphone,
   messenger: Facebook,
+  web_form: ClipboardList,
 };
 
 const channelColorMap: Record<LeadChannel, string> = {
   web_chat: 'bg-sky-50 text-sky-600',
   sms: 'bg-emerald-50 text-emerald-600',
   messenger: 'bg-blue-50 text-blue-600',
+  web_form: 'bg-violet-50 text-violet-600',
 };
 
 const stageColorMap: Record<LeadStage, { bg: string; text: string; dot: string }> = {

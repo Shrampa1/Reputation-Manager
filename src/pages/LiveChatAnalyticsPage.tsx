@@ -3,6 +3,7 @@ import { AlertCircle, Loader2, Star } from 'lucide-react';
 import { useLocationContext } from '@/context/LocationContext';
 import { fetchChatAnalytics, pagePath, type CallStats, type ChatAnalytics } from '@/lib/liveChat';
 import { LiveChatHeader } from '@/components/livechat/LiveChatHeader';
+import { channelLabel } from '@/lib/aiAgent';
 
 const RANGES: [number, string][] = [[7, 'Last 7 days'], [30, 'Last 30 days'], [90, 'Last 90 days']];
 
@@ -93,6 +94,7 @@ export function LiveChatAnalyticsPage() {
                 </ul>
               )}
             </section>
+            <TableCard title="Chats by channel" empty="No chats yet." rows={Object.entries(a.by_channel ?? {}).sort((x, y) => y[1] - x[1]).map(([ch, n]) => [channelLabel(ch), n])} />
             <TableCard title="Top pages chats start on" empty="No chats yet." rows={a.top_pages.map((p) => [pagePath(p.page) ?? p.page, p.chats])} />
             <TableCard title="Tags" empty="No tags yet. Add them from the visitor panel in the Inbox." rows={a.top_tags.map((t) => [t.tag, t.chats])} />
           </div>

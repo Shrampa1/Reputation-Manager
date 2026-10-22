@@ -67,9 +67,9 @@ export interface ReviewRequest {
 }
 
 // Leads — DB enum: lead_stage (new_lead, quote_sent, job_booked, completed, review_requested)
-// DB enum: lead_channel (web_chat, sms, messenger)
+// DB enum: lead_channel (web_chat, sms, messenger, web_form from migration 043)
 export type LeadStage = 'new_lead' | 'quote_sent' | 'job_booked' | 'completed' | 'review_requested';
-export type LeadChannel = 'web_chat' | 'sms' | 'messenger';
+export type LeadChannel = 'web_chat' | 'sms' | 'messenger' | 'web_form';
 
 export interface Lead {
   id: string;

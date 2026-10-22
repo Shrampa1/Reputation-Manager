@@ -7,6 +7,7 @@ import { setPresence, setSoundOn, soundOn, useChatBadge, usePresence } from '@/l
 const tabs = [
   { label: 'Inbox', path: '/chat', end: true },
   { label: 'Visitors', path: '/chat/visitors' },
+  { label: 'AI agent', path: '/chat/agent' },
   { label: 'Knowledge', path: '/chat/knowledge' },
   { label: 'Saved replies', path: '/chat/replies' },
   { label: 'Analytics', path: '/chat/analytics' },

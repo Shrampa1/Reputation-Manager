@@ -324,7 +324,7 @@ export function playChime() {
 // ---------- files (W1b) ----------
 export const CHAT_FILE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'];
 export const MAX_CHAT_FILE = 10 * 1024 * 1024;
-export interface ChatAttachment { path?: string; name: string; type: string; size: number }
+export interface ChatAttachment { path?: string; name: string; type: string; size: number; /** Messenger/Instagram files are links */ url?: string }
 
 /** Uploads into the conversation's own folder, then sends it as a team message. */
 export async function sendChatFile(orgId: string, conversationId: string, file: File) {
@@ -384,6 +384,8 @@ export const emailTranscript = (conversationId: string, email?: string) =>
 // ---------- analytics (W1b) ----------
 export interface ChatAnalytics {
   chats: number;
+  /** Chats per channel (W5): web_chat, messenger, instagram */
+  by_channel?: Record<string, number>;
   visitor_messages: number;
   ai_answers: number;
   team_replies: number;
