@@ -1,5 +1,10 @@
-import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Star, MapPin, CalendarDays, Inbox, Megaphone, LogOut, Plug, UserCog, Users, History, CreditCard, ShieldCheck, KeyRound, Briefcase, FileText, Workflow, Target, MessageSquareText, ClipboardCheck, MapPinned, Crosshair, ListChecks, FileBarChart, MessagesSquare, ClipboardList, Gauge, BookUser, Mail } from 'lucide-react';
+import { useState } from 'react';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import {
+  LayoutDashboard, Star, MapPin, CalendarDays, Inbox, Megaphone, LogOut, Plug, UserCog, Users, History, CreditCard, ShieldCheck, KeyRound, Briefcase,
+  FileText, Workflow, Target, MessageSquareText, ClipboardCheck, MapPinned, Crosshair, ListChecks, FileBarChart, MessagesSquare, ClipboardList, Gauge,
+  BookUser, Mail, ChevronDown,
+} from 'lucide-react';
 import { useBranding } from '@/hooks/useBranding';
 import type { Permission } from '@/lib/permissions';
 import { Logo } from '@/components/Logo';
@@ -9,49 +14,155 @@ import { useLocationContext } from '@/context/LocationContext';
 import { displayName, getInitials } from '@/lib/user';
 import { useChatBadge } from '@/lib/liveChat';
 
-const navItems: { label: string; path: string; icon: typeof Star; permission?: Permission; client?: boolean }[] = [
-  // client: shown to view-only client logins (agency portal) too
-  { label: 'Dashboard', path: '/', icon: LayoutDashboard, client: true },
-  { label: 'Reviews', path: '/reviews', icon: Star, client: true },
-  { label: 'Approvals', path: '/approvals', icon: ClipboardCheck, permission: 'approvals.respond', client: true },
-  { label: 'SEO & Website', path: '/seo', icon: MapPin },
-  { label: 'Google profile', path: '/google', icon: MapPinned },
-  { label: 'Local rankings', path: '/rankings', icon: Crosshair },
-  { label: 'Listings check', path: '/listings', icon: ListChecks },
-  { label: 'Social', path: '/social', icon: CalendarDays },
-  { label: 'Leads', path: '/leads', icon: Inbox },
-  { label: 'Lead forms', path: '/forms', icon: ClipboardList },
-  { label: 'Surveys', path: '/surveys', icon: Gauge },
-  { label: 'Contacts', path: '/contacts', icon: BookUser, permission: 'reviews.request' },
-  { label: 'Email campaigns', path: '/campaigns', icon: Mail, permission: 'campaigns.send' },
-  { label: 'Live chat', path: '/chat', icon: MessagesSquare },
-  { label: 'Ads', path: '/ads', icon: Megaphone, permission: 'ads.view' },
-  { label: 'Prospects', path: '/prospects', icon: Target, permission: 'prospects.manage' },
+type NavItem = {
+  label: string;
+  path: string;
+  icon: typeof Star;
+  permission?: Permission;
+  /** Shown to view-only client logins (agency portal) too */
+  client?: boolean;
+  ownerOnly?: boolean;
+  /** Agency plan (or super admin) only */
+  agency?: boolean;
+  superAdmin?: boolean;
+};
+
+const sections: { id: string; label: string; items: NavItem[] }[] = [
+  {
+    id: 'overview',
+    label: 'Overview',
+    items: [
+      { label: 'Dashboard', path: '/', icon: LayoutDashboard, client: true },
+      { label: 'Approvals', path: '/approvals', icon: ClipboardCheck, permission: 'approvals.respond', client: true },
+    ],
+  },
+  {
+    id: 'reputation',
+    label: 'Reputation',
+    items: [
+      { label: 'Reviews', path: '/reviews', icon: Star, client: true },
+      { label: 'Surveys', path: '/surveys', icon: Gauge },
+      { label: 'Reply templates', path: '/templates', icon: MessageSquareText, permission: 'reviews.reply' },
+    ],
+  },
+  {
+    id: 'local',
+    label: 'Local SEO',
+    items: [
+      { label: 'SEO & Website', path: '/seo', icon: MapPin },
+      { label: 'Google profile', path: '/google', icon: MapPinned },
+      { label: 'Local rankings', path: '/rankings', icon: Crosshair },
+      { label: 'Listings check', path: '/listings', icon: ListChecks },
+    ],
+  },
+  {
+    id: 'leads',
+    label: 'Leads & customers',
+    items: [
+      { label: 'Leads', path: '/leads', icon: Inbox },
+      { label: 'Live chat', path: '/chat', icon: MessagesSquare },
+      { label: 'Lead forms', path: '/forms', icon: ClipboardList },
+      { label: 'Contacts', path: '/contacts', icon: BookUser, permission: 'reviews.request' },
+    ],
+  },
+  {
+    id: 'marketing',
+    label: 'Marketing',
+    items: [
+      { label: 'Social', path: '/social', icon: CalendarDays },
+      { label: 'Email campaigns', path: '/campaigns', icon: Mail, permission: 'campaigns.send' },
+      { label: 'Ads', path: '/ads', icon: Megaphone, permission: 'ads.view' },
+    ],
+  },
+  {
+    id: 'agency',
+    label: 'Agency',
+    items: [
+      { label: 'Agency', path: '/agency', icon: Briefcase, agency: true },
+      { label: 'Prospects', path: '/prospects', icon: Target, permission: 'prospects.manage' },
+      { label: 'Client reports', path: '/client-reports', icon: FileBarChart, permission: 'business.edit' },
+    ],
+  },
+  {
+    id: 'automation',
+    label: 'Automation',
+    items: [
+      { label: 'Automations', path: '/automations', icon: Workflow, permission: 'integrations.manage' },
+      { label: 'Integrations', path: '/integrations', icon: Plug, permission: 'integrations.manage' },
+    ],
+  },
+  {
+    id: 'account',
+    label: 'Account',
+    items: [
+      { label: 'Team', path: '/team', icon: Users },
+      { label: 'Role access', path: '/access', icon: KeyRound, ownerOnly: true },
+      { label: 'Activity', path: '/activity', icon: History, permission: 'activity.view' },
+      { label: 'Plan & billing', path: '/billing', icon: CreditCard, permission: 'billing.manage' },
+      { label: 'Profile & Settings', path: '/settings', icon: UserCog, client: true },
+      { label: 'Super admin', path: '/admin', icon: ShieldCheck, superAdmin: true },
+    ],
+  },
 ];
 
-const settingsItems = [
-  { label: 'Integrations', path: '/integrations', icon: Plug, permission: 'integrations.manage' as Permission },
-  { label: 'Automations', path: '/automations', icon: Workflow, permission: 'integrations.manage' as Permission },
-  { label: 'Reply templates', path: '/templates', icon: MessageSquareText, permission: 'reviews.reply' as Permission },
-  { label: 'Client reports', path: '/client-reports', icon: FileBarChart, permission: 'business.edit' as Permission },
-  { label: 'Team', path: '/team', icon: Users },
-  { label: 'Role access', path: '/access', icon: KeyRound, ownerOnly: true },
-  { label: 'Activity', path: '/activity', icon: History, permission: 'activity.view' as Permission },
-  { label: 'Plan & billing', path: '/billing', icon: CreditCard, permission: 'billing.manage' as Permission },
-  { label: 'Profile & Settings', path: '/settings', icon: UserCog },
-];
+const STORAGE_KEY = 're-sidebar-collapsed';
+const readCollapsed = (): string[] => {
+  try {
+    const v = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
+    return Array.isArray(v) ? v : [];
+  } catch {
+    return [];
+  }
+};
+const isOn = (pathname: string, path: string) => (path === '/' ? pathname === '/' : pathname === path || pathname.startsWith(`${path}/`));
 
 export function Sidebar() {
   const { user, signOut } = useAuth();
   const { organization, can, isOwnerLike, isPlatformAdmin, isClient, hasAgencyPlan } = useLocationContext();
   const branding = useBranding();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const chatWaiting = useChatBadge();
+  const [collapsed, setCollapsed] = useState<string[]>(readCollapsed);
 
   const handleSignOut = async () => {
     await signOut();
     navigate('/login');
   };
+  const toggle = (id: string) => {
+    const next = collapsed.includes(id) ? collapsed.filter((x) => x !== id) : [...collapsed, id];
+    setCollapsed(next);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      /* storage blocked: only for this visit */
+    }
+  };
+
+  const visible = (item: NavItem) => {
+    if (isClient) return Boolean(item.client);
+    if (item.superAdmin) return isPlatformAdmin;
+    if (item.agency) return hasAgencyPlan || isPlatformAdmin;
+    if (item.ownerOnly) return isOwnerLike;
+    return !item.permission || can(item.permission);
+  };
+
+  const link = (item: NavItem) => (
+    <NavLink
+      key={item.path}
+      to={item.path}
+      end={item.path === '/'}
+      className={({ isActive }) => `nav-link !py-2 ${isActive ? 'nav-link-active' : 'nav-link-inactive'}`}
+    >
+      <item.icon className="w-[18px] h-[18px] shrink-0" />
+      <span>{item.label}</span>
+      {item.path === '/chat' && chatWaiting > 0 && (
+        <span className="ml-auto inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-rose-500 text-white text-[11px] font-semibold" aria-label={`${chatWaiting} chats waiting`}>
+          {chatWaiting}
+        </span>
+      )}
+    </NavLink>
+  );
 
   return (
     <aside className="hidden lg:flex flex-col w-64 shrink-0 h-screen sticky top-0 border-r border-slate-200/80 bg-white">
@@ -61,57 +172,44 @@ export function Sidebar() {
 
       <BusinessSwitcher />
 
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        <p className="px-3 pb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">Menu</p>
-        {navItems.filter((item) => (isClient ? item.client : !item.permission || can(item.permission))).map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            end={item.path === '/'}
-            className={({ isActive }) =>
-              `nav-link ${isActive ? 'nav-link-active' : 'nav-link-inactive'}`
-            }
-          >
-            <item.icon className="w-[18px] h-[18px] shrink-0" />
-            <span>{item.label}</span>
-            {item.path === '/chat' && chatWaiting > 0 && (
-              <span className="ml-auto inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-rose-500 text-white text-[11px] font-semibold" aria-label={`${chatWaiting} chats waiting`}>
-                {chatWaiting}
-              </span>
+      <nav className="flex-1 px-3 py-3 overflow-y-auto" aria-label="Main">
+        {isClient ? (
+          // Client logins see a short, flat menu
+          <div className="space-y-0.5">
+            <p className="px-3 pb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">Menu</p>
+            {sections.flatMap((s) => s.items).filter(visible).map(link)}
+            {can('reports.download') && (
+              <NavLink to="/report" className="nav-link !py-2 nav-link-inactive">
+                <FileText className="w-[18px] h-[18px] shrink-0" />
+                <span>Monthly report</span>
+              </NavLink>
             )}
-          </NavLink>
-        ))}
-        {isClient && can('reports.download') && (
-          <NavLink to="/report" className="nav-link nav-link-inactive">
-            <FileText className="w-[18px] h-[18px] shrink-0" />
-            <span>Monthly report</span>
-          </NavLink>
-        )}
-        {!isClient && (hasAgencyPlan || isPlatformAdmin) && (
-          <NavLink to="/agency" className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : 'nav-link-inactive'}`}>
-            <Briefcase className="w-[18px] h-[18px] shrink-0" />
-            <span>Agency</span>
-          </NavLink>
-        )}
-
-        <p className="px-3 pt-5 pb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">Settings</p>
-        {settingsItems.filter((item) => (isClient ? item.path === '/settings' : item.permission ? can(item.permission) : item.ownerOnly ? isOwnerLike : true)).map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            className={({ isActive }) =>
-              `nav-link ${isActive ? 'nav-link-active' : 'nav-link-inactive'}`
-            }
-          >
-            <item.icon className="w-[18px] h-[18px] shrink-0" />
-            <span>{item.label}</span>
-          </NavLink>
-        ))}
-        {isPlatformAdmin && (
-          <NavLink to="/admin" className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : 'nav-link-inactive'}`}>
-            <ShieldCheck className="w-[18px] h-[18px] shrink-0" />
-            <span>Super admin</span>
-          </NavLink>
+          </div>
+        ) : (
+          sections.map((section) => {
+            const items = section.items.filter(visible);
+            if (!items.length) return null;
+            const current = items.some((i) => isOn(pathname, i.path));
+            // The section with the page you're on always stays open
+            const open = current || !collapsed.includes(section.id);
+            const badge = !open && items.some((i) => i.path === '/chat') && chatWaiting > 0;
+            return (
+              <div key={section.id} className="mb-1">
+                <button
+                  type="button"
+                  onClick={() => toggle(section.id)}
+                  disabled={current}
+                  aria-expanded={open}
+                  className="w-full flex items-center gap-2 px-3 pt-3 pb-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wider hover:text-slate-600 disabled:hover:text-slate-400 disabled:cursor-default"
+                >
+                  <span className="flex-1 text-left">{section.label}</span>
+                  {badge && <span className="w-2 h-2 rounded-full bg-rose-500" aria-label={`${chatWaiting} chats waiting`} />}
+                  {!current && <ChevronDown className={`w-3.5 h-3.5 transition-transform ${open ? '' : '-rotate-90'}`} />}
+                </button>
+                {open && <div className="space-y-0.5">{items.map(link)}</div>}
+              </div>
+            );
+          })
         )}
       </nav>
 
