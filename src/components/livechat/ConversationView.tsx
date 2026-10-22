@@ -1,8 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Bot, CheckCircle2, Hand, Headset, Loader2, RotateCcw, Send, StickyNote } from 'lucide-react';
+import { ArrowLeft, Bot, CheckCircle2, Download, FileText, Hand, Headset, Loader2, Mail, MoreHorizontal, Paperclip, Phone, RotateCcw, Send, StickyNote } from 'lucide-react';
 import {
   addChatNote,
   assignChat,
+  CHAT_FILE_TYPES,
+  downloadText,
+  emailTranscript,
+  sendChatFile,
+  transcriptText,
+  useChatFileUrl,
   isUnread,
   markChatSeen,
   replyToChat,
@@ -14,14 +20,20 @@ import {
   visitorLabel,
   type CannedResponse,
   type InboxConversation,
+  type ChatAttachment,
   type LiveMessage,
 } from '@/lib/liveChat';
+import { startOutbound, useCall } from '@/lib/calls';
 import type { TeamMember } from '@/types';
 
 const time = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 const day = (iso: string) => new Date(iso).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
 
 interface Props {
+  orgId: string;
+  businessName: string;
+  /** Web calls are on for this business (plan add-on + switched on in Settings) */
+  callsOn: boolean;
   convo: InboxConversation;
   team: TeamMember[];
   canned: CannedResponse[];
@@ -32,7 +44,7 @@ interface Props {
 }
 
 /** The middle panel: one conversation, live, with the reply box and the chat's actions. */
-export function ConversationView({ convo, team, canned, canReply, me, onPatch, onBack }: Props) {
+export function ConversationView({ orgId, businessName, callsOn, convo, team, canned, canReply, me, onPatch, onBack }: Props) {
   const { messages, loading, add } = useMessages(convo.id);
   const [text, setText] = useState('');
   const [asNote, setAsNote] = useState(false);
@@ -40,6 +52,10 @@ export function ConversationView({ convo, team, canned, canReply, me, onPatch, o
   const [error, setError] = useState<string | null>(null);
   const [, setTick] = useState(0);
   const endRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [menu, setMenu] = useState(false);
+  const [info, setInfo] = useState<string | null>(null);
+  const call = useCall();
   const lastTyping = useRef(0);
   const unread = isUnread(convo);
 
@@ -102,6 +118,35 @@ export function ConversationView({ convo, team, canned, canReply, me, onPatch, o
 
   const pick = (c: CannedResponse) => setText(c.body);
 
+  const sendFile = async (file: File | undefined) => {
+    if (!file) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const msg = await sendChatFile(orgId, convo.id, file);
+      add(msg);
+      onPatch({ id: convo.id, mode: 'agent', needs_agent: false, status: 'open', assigned_to: convo.assigned_to ?? me ?? null, last_message_at: msg.created_at, last_message_preview: msg.body, last_message_sender: 'agent' });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Couldn’t send the file');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const mailTranscript = async () => {
+    setMenu(false);
+    const to = window.prompt('Email the transcript to:', convo.visitor_email ?? '');
+    if (!to) return;
+    setInfo(null);
+    setError(null);
+    try {
+      const r = await emailTranscript(convo.id, to.trim());
+      setInfo(`Transcript sent to ${r.sentTo}.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Couldn’t send the transcript');
+    }
+  };
+
   const onInput = (value: string) => {
     setText(value);
     if (!asNote && value && Date.now() - lastTyping.current > 3000) {
@@ -126,6 +171,17 @@ export function ConversationView({ convo, team, canned, canReply, me, onPatch, o
         </div>
         {canReply && (
           <div className="flex items-center gap-2 flex-wrap">
+            {callsOn && convo.status === 'open' && (
+              <button
+                type="button"
+                disabled={Boolean(call)}
+                onClick={() => startOutbound(convo.id, visitorLabel(convo))}
+                className="btn-secondary text-sm !py-1.5"
+                title="Calls the visitor in their browser (they need to have your website open)"
+              >
+                <Phone className="w-4 h-4" /> Call
+              </button>
+            )}
             <select
               className="input-field !w-auto !py-1 text-sm"
               value={convo.assigned_to ?? ''}
@@ -145,6 +201,21 @@ export function ConversationView({ convo, team, canned, canReply, me, onPatch, o
                 <Headset className="w-4 h-4" /> Take over
               </button>
             ))}
+            <div className="relative">
+              <button type="button" onClick={() => setMenu(!menu)} className="btn-secondary text-sm !py-1.5 !px-2" aria-label="More actions" aria-expanded={menu}>
+                <MoreHorizontal className="w-4 h-4" />
+              </button>
+              {menu && (
+                <div className="absolute right-0 top-full mt-1 z-20 w-56 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden text-sm">
+                  <button type="button" className="w-full text-left px-3 py-2 hover:bg-slate-50 inline-flex items-center gap-2" onClick={() => { setMenu(false); downloadText(`chat-${convo.id.slice(0, 8)}.txt`, transcriptText(convo, messages, businessName)); }}>
+                    <Download className="w-4 h-4 text-slate-400" /> Download transcript
+                  </button>
+                  <button type="button" className="w-full text-left px-3 py-2 hover:bg-slate-50 inline-flex items-center gap-2" onClick={mailTranscript}>
+                    <Mail className="w-4 h-4 text-slate-400" /> Email transcript
+                  </button>
+                </div>
+              )}
+            </div>
             {convo.status === 'open' ? (
               <button type="button" disabled={busy} onClick={() => run(() => setChatStatus(convo.id, 'resolved'))} className="btn-primary text-sm !py-1.5">
                 <CheckCircle2 className="w-4 h-4" /> Resolve
@@ -204,6 +275,14 @@ export function ConversationView({ convo, team, canned, canReply, me, onPatch, o
             <span className="ml-auto text-slate-400 hidden sm:inline">{asNote ? 'Only your team sees notes' : 'Type / for saved replies'}</span>
           </div>
           <div className="flex gap-2">
+            {!asNote && (
+              <>
+                <input ref={fileRef} type="file" hidden accept={CHAT_FILE_TYPES.join(',')} onChange={(e) => { sendFile(e.target.files?.[0]); e.target.value = ''; }} />
+                <button type="button" onClick={() => fileRef.current?.click()} disabled={busy} className="self-end p-2 text-slate-400 hover:text-slate-700" aria-label="Send a file">
+                  <Paperclip className="w-5 h-5" />
+                </button>
+              </>
+            )}
             <textarea
               className={`input-field flex-1 text-sm ${asNote ? '!bg-amber-50/60' : ''}`}
               rows={2}
@@ -224,6 +303,7 @@ export function ConversationView({ convo, team, canned, canReply, me, onPatch, o
             </button>
           </div>
           {error && <p className="text-xs text-rose-700">{error}</p>}
+          {info && <p className="text-xs text-emerald-700">{info}</p>}
         </form>
       ) : (
         <p className="border-t border-slate-200 p-3 text-xs text-slate-500">You can read chats but not reply (Answer website chats is off for you).</p>
@@ -234,7 +314,12 @@ export function ConversationView({ convo, team, canned, canReply, me, onPatch, o
 
 function MessageBubble({ m }: { m: LiveMessage }) {
   if (m.sender === 'system') {
-    return <p className="text-center text-xs text-slate-500 py-1">{m.meta?.ended ? '— Chat resolved —' : m.body} <span className="text-slate-400">{time(m.created_at)}</span></p>;
+    return (
+      <p className="text-center text-xs text-slate-500 py-1">
+        {m.meta?.call ? <Phone className="w-3 h-3 inline mr-1" /> : null}
+        {m.meta?.ended ? '— Chat resolved —' : m.body} <span className="text-slate-400">{time(m.created_at)}</span>
+      </p>
+    );
   }
   if (m.sender === 'note') {
     return (
@@ -250,11 +335,28 @@ function MessageBubble({ m }: { m: LiveMessage }) {
       <span className="text-[11px] text-slate-400 mb-0.5 px-1">
         {visitor ? 'Visitor' : m.sender === 'ai' ? 'AI assistant' : m.author_name ?? 'Team'} · {time(m.created_at)}
       </span>
-      <p className={`max-w-[80%] text-sm rounded-2xl px-3 py-2 whitespace-pre-wrap ${
+      {m.meta?.attachment ? <AttachmentView att={m.meta.attachment as ChatAttachment} mine={!visitor} /> : <p className={`max-w-[80%] text-sm rounded-2xl px-3 py-2 whitespace-pre-wrap ${
         visitor ? 'bg-white border border-slate-200 text-slate-800 rounded-bl-md'
           : m.sender === 'ai' ? 'bg-sky-50 border border-sky-100 text-slate-800 rounded-br-md'
           : 'bg-sky-600 text-white rounded-br-md'
-      }`}>{m.body}</p>
+      }`}>{m.body}</p>}
     </div>
+  );
+}
+
+function AttachmentView({ att, mine }: { att: ChatAttachment; mine: boolean }) {
+  const url = useChatFileUrl(att.path);
+  const isImage = att.type.startsWith('image/');
+  if (isImage && url) {
+    return (
+      <a href={url} target="_blank" rel="noopener noreferrer" className="block max-w-[60%]">
+        <img src={url} alt={att.name} className="rounded-xl border border-slate-200 max-h-60 object-contain" />
+      </a>
+    );
+  }
+  return (
+    <a href={url ?? undefined} target="_blank" rel="noopener noreferrer" className={`inline-flex items-center gap-2 text-sm rounded-2xl px-3 py-2 border ${mine ? 'bg-sky-50 border-sky-100' : 'bg-white border-slate-200'} text-slate-800`}>
+      <FileText className="w-4 h-4 text-slate-500" /> {att.name} <span className="text-xs text-slate-400">{Math.max(1, Math.round(att.size / 1024))} KB</span>
+    </a>
   );
 }

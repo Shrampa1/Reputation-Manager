@@ -14,6 +14,7 @@ import { ResetPasswordPage } from '@/pages/ResetPasswordPage';
 import { PortalPage } from '@/pages/PortalPage';
 import { BrandingEffect } from '@/hooks/useBranding';
 import { LiveChatWatcher } from '@/components/livechat/LiveChatWatcher';
+import { CallManager } from '@/components/livechat/CallManager';
 
 // Pages are split into their own files and downloaded when first opened
 const page = <K extends string, P extends object>(name: K, load: () => Promise<Record<K, React.ComponentType<P>>>) =>
@@ -43,6 +44,9 @@ const WebsiteChatPage = page('WebsiteChatPage', () => import('@/pages/WebsiteCha
 const LiveChatInboxPage = page('LiveChatInboxPage', () => import('@/pages/LiveChatInboxPage'));
 const LiveChatVisitorsPage = page('LiveChatVisitorsPage', () => import('@/pages/LiveChatVisitorsPage'));
 const LiveChatRepliesPage = page('LiveChatRepliesPage', () => import('@/pages/LiveChatRepliesPage'));
+const LiveChatKnowledgePage = page('LiveChatKnowledgePage', () => import('@/pages/LiveChatKnowledgePage'));
+const LiveChatAnalyticsPage = page('LiveChatAnalyticsPage', () => import('@/pages/LiveChatAnalyticsPage'));
+const HelpCenterPage = page('HelpCenterPage', () => import('@/pages/HelpCenterPage'));
 const ApprovalsPage = page('ApprovalsPage', () => import('@/pages/ApprovalsPage'));
 const GooglePage = page('GooglePage', () => import('@/pages/GooglePage'));
 const RankingsPage = page('RankingsPage', () => import('@/pages/RankingsPage'));
@@ -73,6 +77,8 @@ function AppRoutes() {
       <Route path="/chat" element={<LiveChatInboxPage />} />
       <Route path="/chat/visitors" element={<LiveChatVisitorsPage />} />
       <Route path="/chat/replies" element={<LiveChatRepliesPage />} />
+      <Route path="/chat/knowledge" element={<LiveChatKnowledgePage />} />
+      <Route path="/chat/analytics" element={<LiveChatAnalyticsPage />} />
       <Route path="/chat/settings" element={<WebsiteChatPage />} />
       <Route path="/ads" element={<AdminRoute permission="ads.view"><AdsPage /></AdminRoute>} />
       <Route path="/agency" element={<AgencyPage />} />
@@ -110,6 +116,9 @@ function App() {
       <Route path="/signup" element={<SignupPage />} />
       {/* Public: customers open this from a review-request email */}
       <Route path="/r/:token" element={<ReviewLandingPage />} />
+      {/* Public: a business's help centre (Live chat knowledge base) */}
+      <Route path="/help/:key" element={<HelpCenterPage />} />
+      <Route path="/help/:key/:articleId" element={<HelpCenterPage />} />
       {/* Public: a prospect audit an agency shared */}
       <Route path="/a/:token" element={<SharedAuditPage />} />
       {/* Public: customers scan the business's counter QR code */}
@@ -160,6 +169,7 @@ function App() {
             <BusinessGate>
               <div className="flex min-h-screen bg-slate-50">
                 <LiveChatWatcher />
+                <CallManager />
                 <Sidebar />
                 <div className="flex-1 min-w-0 flex flex-col">
                   <MobileHeader />

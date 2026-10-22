@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useLocationContext } from '@/context/LocationContext';
+import { callFunction } from '@/lib/functions';
 
 /** Live chat inbox (Phase W1, migration 037): conversations, messages, team actions, visitors online. */
 export type Sender = 'visitor' | 'ai' | 'agent' | 'system' | 'note';
@@ -318,4 +319,95 @@ export function playChime() {
   } catch {
     /* audio blocked until the user interacts with the page */
   }
+}
+
+// ---------- files (W1b) ----------
+export const CHAT_FILE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'];
+export const MAX_CHAT_FILE = 10 * 1024 * 1024;
+export interface ChatAttachment { path?: string; name: string; type: string; size: number }
+
+/** Uploads into the conversation's own folder, then sends it as a team message. */
+export async function sendChatFile(orgId: string, conversationId: string, file: File) {
+  if (!CHAT_FILE_TYPES.includes(file.type)) throw new Error('Send images (JPG, PNG, WebP, GIF) or PDFs.');
+  if (file.size > MAX_CHAT_FILE) throw new Error('Files can be up to 10 MB.');
+  const safe = file.name.toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(-60) || 'file';
+  const path = `${orgId}/${conversationId}/${crypto.randomUUID()}-${safe}`;
+  const { error } = await supabase.storage.from('chat-files').upload(path, file, { contentType: file.type, upsert: false });
+  if (error) throw new Error(error.message);
+  return rpc<LiveMessage>('chat_agent_send_file', { p_conversation: conversationId, p_path: path, p_name: file.name.slice(0, 120), p_type: file.type, p_size: file.size });
+}
+
+const fileUrls = new Map<string, { url: string; until: number }>();
+/** A short-lived link to a private chat file. */
+export function useChatFileUrl(path: string | undefined) {
+  const [url, setUrl] = useState<string | null>(() => (path && (fileUrls.get(path)?.until ?? 0) > Date.now() ? fileUrls.get(path)!.url : null));
+  useEffect(() => {
+    if (!path) return;
+    const hit = fileUrls.get(path);
+    if (hit && hit.until > Date.now()) {
+      setUrl(hit.url);
+      return;
+    }
+    let cancelled = false;
+    supabase.storage.from('chat-files').createSignedUrl(path, 3600).then(({ data }) => {
+      if (cancelled || !data?.signedUrl) return;
+      fileUrls.set(path, { url: data.signedUrl, until: Date.now() + 50 * 60_000 });
+      setUrl(data.signedUrl);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [path]);
+  return url;
+}
+
+// ---------- transcripts (W1b) ----------
+/** Plain-text transcript (internal notes left out) for downloading. */
+export function transcriptText(convo: InboxConversation, messages: LiveMessage[], businessName: string) {
+  const who = (m: LiveMessage) => (m.sender === 'visitor' ? visitorLabel(convo) : m.sender === 'agent' ? `${m.author_name ?? 'Team'} (${businessName})` : m.sender === 'ai' ? `${businessName} AI` : businessName);
+  const lines = messages.filter((m) => m.sender !== 'note').map((m) => `[${new Date(m.created_at).toLocaleString()}] ${who(m)}: ${m.meta?.attachment ? `(file) ${m.body}` : m.body}`);
+  return [`Chat with ${visitorLabel(convo)}`, convo.visitor_email ? `Email: ${convo.visitor_email}` : '', convo.visitor_phone ? `Phone: ${convo.visitor_phone}` : '', '', ...lines].filter((l, i) => l || i > 2).join('\n');
+}
+
+export function downloadText(filename: string, text: string) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+/** Emails the transcript to the visitor (or another address) through the website-chat function. */
+export const emailTranscript = (conversationId: string, email?: string) =>
+  callFunction<{ ok: boolean; sentTo: string }>('website-chat', { action: 'agent_transcript', conversation: conversationId, ...(email ? { email } : {}) });
+
+// ---------- analytics (W1b) ----------
+export interface ChatAnalytics {
+  chats: number;
+  visitor_messages: number;
+  ai_answers: number;
+  team_replies: number;
+  handled_by_ai: number;
+  handled_by_team: number;
+  missed: number;
+  leads: number;
+  avg_first_response_seconds: number | null;
+  ratings: number;
+  avg_rating: number | null;
+  rating_breakdown: Record<string, number>;
+  by_day: { day: string; chats: number; team: number; leads: number }[];
+  by_hour: { hour: number; messages: number }[];
+  top_pages: { page: string; chats: number }[];
+  top_tags: { tag: string; chats: number }[];
+  team: { user_id: string; name: string | null; replies: number; chats: number; avg_rating: number | null }[];
+}
+export interface CallStats { calls: number; inbound: number; outbound: number; answered: number; missed: number; avg_seconds: number | null; total_seconds: number }
+
+export async function fetchChatAnalytics(locationId: string, days: number) {
+  const to = new Date(Date.now() + 60_000);
+  const from = new Date(Date.now() - days * 86_400_000);
+  const args = { p_location: locationId, p_from: from.toISOString(), p_to: to.toISOString() };
+  const [a, c] = await Promise.all([supabase.rpc('chat_analytics', args), supabase.rpc('chat_call_stats', args)]);
+  if (a.error) throw new Error(a.error.message);
+  return { analytics: a.data as ChatAnalytics, calls: (c.error ? null : c.data) as CallStats | null };
 }

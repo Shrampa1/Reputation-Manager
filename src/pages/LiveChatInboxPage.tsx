@@ -6,6 +6,7 @@ import { useLocationContext } from '@/context/LocationContext';
 import { relativeTime } from '@/lib/activity';
 import { fetchTeam } from '@/lib/team';
 import { isUnread, needsTeam, useCannedResponses, useInbox, visitorLabel, type InboxConversation } from '@/lib/liveChat';
+import { useWebsiteChat } from '@/lib/websiteChat';
 import { LiveChatHeader } from '@/components/livechat/LiveChatHeader';
 import { ConversationView } from '@/components/livechat/ConversationView';
 import { VisitorPanel } from '@/components/livechat/VisitorPanel';
@@ -20,6 +21,8 @@ export function LiveChatInboxPage() {
   const canReply = can('chat.reply');
   const { conversations, loading, error, patch } = useInbox();
   const { items: canned } = useCannedResponses();
+  const { settings: chatSettings, callsAvailable } = useWebsiteChat();
+  const callsOn = callsAvailable && Boolean(chatSettings?.widget.calls?.enabled);
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [params, setParams] = useSearchParams();
   const [filter, setFilter] = useState<Filter>('open');
@@ -103,7 +106,7 @@ export function LiveChatInboxPage() {
         {/* Chat */}
         <section className={`min-h-0 ${selected ? 'flex flex-col' : 'hidden lg:flex lg:flex-col'}`}>
           {selected ? (
-            <ConversationView key={selected.id} convo={selected} team={team} canned={canned} canReply={canReply} me={user?.id} onPatch={patch} onBack={() => open(null)} />
+            <ConversationView key={selected.id} orgId={organization?.id ?? ''} businessName={organization?.name ?? ''} callsOn={callsOn} convo={selected} team={team} canned={canned} canReply={canReply} me={user?.id} onPatch={patch} onBack={() => open(null)} />
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-slate-500">
               <MessagesSquare className="w-10 h-10 text-slate-300 mb-3" />
