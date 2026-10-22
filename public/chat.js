@@ -338,6 +338,7 @@
     var agentsOnline = 0;
     var lastAgentName = null;
     var chipsEl = null;
+    var lastRendered = null;
     var rateCard = null;
 
     // ---------- sounds ----------
@@ -395,6 +396,9 @@
         return;
       }
       var cls = m.sender === 'visitor' ? 'visitor' : m.sender === 'agent' ? 'agent' : 'bot';
+      // The AI agent's name, once per run of its messages
+      if (m.sender === 'ai' && cfg.agentName && lastRendered !== 'ai') put(el('div', 'who', str(cfg.agentName, 40) + ' · AI assistant'));
+      lastRendered = m.sender;
       if (m.sender === 'agent') {
         lastAgentName = m.author_name || 'Team';
         put(el('div', 'who', lastAgentName + ' · ' + cfg.businessName));
@@ -437,6 +441,7 @@
 
     function redraw() {
       rateCard = null;
+      lastRendered = null;
       chipsEl = null;
       list.textContent = '';
       list.appendChild(typing);

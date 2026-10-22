@@ -92,7 +92,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const ANGLE_EMAIL_RE = /^(.*?)<\s*([^<>\s]+@[^<>\s]+)\s*>\s*$/;
 
 /** Splits CSV text into rows, honouring "quoted, values" and "" escapes. */
-function splitCsv(text: string, delimiter: string): string[][] {
+export function splitCsv(text: string, delimiter: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
   let cell = '';

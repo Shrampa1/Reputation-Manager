@@ -21,7 +21,8 @@ export type Permission =
   | 'actions.send'
   | 'prospects.manage'
   | 'approvals.respond'
-  | 'chat.reply';
+  | 'chat.reply'
+  | 'campaigns.send';
 
 export interface PermissionInfo {
   permission: Permission;
@@ -59,6 +60,7 @@ export const FALLBACK_DEFAULTS: Record<Permission, { owner: boolean; admin: bool
   'prospects.manage': { owner: true, admin: true, member: false },
   'approvals.respond': { owner: true, admin: true, member: false },
   'chat.reply': { owner: true, admin: true, member: true },
+  'campaigns.send': { owner: true, admin: true, member: false },
 };
 
 export function defaultPermissions(role: ViewerRole | null): Record<Permission, boolean> {

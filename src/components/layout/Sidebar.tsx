@@ -1,5 +1,5 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Star, MapPin, CalendarDays, Inbox, Megaphone, LogOut, Plug, UserCog, Users, History, CreditCard, ShieldCheck, KeyRound, Briefcase, FileText, Workflow, Target, MessageSquareText, ClipboardCheck, MapPinned, Crosshair, ListChecks, FileBarChart, MessagesSquare, ClipboardList } from 'lucide-react';
+import { LayoutDashboard, Star, MapPin, CalendarDays, Inbox, Megaphone, LogOut, Plug, UserCog, Users, History, CreditCard, ShieldCheck, KeyRound, Briefcase, FileText, Workflow, Target, MessageSquareText, ClipboardCheck, MapPinned, Crosshair, ListChecks, FileBarChart, MessagesSquare, ClipboardList, Gauge, BookUser, Mail } from 'lucide-react';
 import { useBranding } from '@/hooks/useBranding';
 import type { Permission } from '@/lib/permissions';
 import { Logo } from '@/components/Logo';
@@ -21,6 +21,9 @@ const navItems: { label: string; path: string; icon: typeof Star; permission?: P
   { label: 'Social', path: '/social', icon: CalendarDays },
   { label: 'Leads', path: '/leads', icon: Inbox },
   { label: 'Lead forms', path: '/forms', icon: ClipboardList },
+  { label: 'Surveys', path: '/surveys', icon: Gauge },
+  { label: 'Contacts', path: '/contacts', icon: BookUser, permission: 'reviews.request' },
+  { label: 'Email campaigns', path: '/campaigns', icon: Mail, permission: 'campaigns.send' },
   { label: 'Live chat', path: '/chat', icon: MessagesSquare },
   { label: 'Ads', path: '/ads', icon: Megaphone, permission: 'ads.view' },
   { label: 'Prospects', path: '/prospects', icon: Target, permission: 'prospects.manage' },

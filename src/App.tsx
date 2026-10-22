@@ -51,6 +51,13 @@ const HelpCenterPage = page('HelpCenterPage', () => import('@/pages/HelpCenterPa
 const LeadFormsPage = page('LeadFormsPage', () => import('@/pages/LeadFormsPage'));
 const LeadFormEditorPage = page('LeadFormEditorPage', () => import('@/pages/LeadFormEditorPage'));
 const PublicFormPage = page('PublicFormPage', () => import('@/pages/PublicFormPage'));
+const SurveysPage = page('SurveysPage', () => import('@/pages/SurveysPage'));
+const SurveyDetailPage = page('SurveyDetailPage', () => import('@/pages/SurveyDetailPage'));
+const PublicSurveyPage = page('PublicSurveyPage', () => import('@/pages/PublicSurveyPage'));
+const ContactsPage = page('ContactsPage', () => import('@/pages/ContactsPage'));
+const CampaignsPage = page('CampaignsPage', () => import('@/pages/CampaignsPage'));
+const CampaignEditorPage = page('CampaignEditorPage', () => import('@/pages/CampaignEditorPage'));
+const UnsubscribePage = page('UnsubscribePage', () => import('@/pages/UnsubscribePage'));
 const ApprovalsPage = page('ApprovalsPage', () => import('@/pages/ApprovalsPage'));
 const GooglePage = page('GooglePage', () => import('@/pages/GooglePage'));
 const RankingsPage = page('RankingsPage', () => import('@/pages/RankingsPage'));
@@ -80,6 +87,11 @@ function AppRoutes() {
       <Route path="/leads" element={<LeadsPage />} />
       <Route path="/forms" element={<LeadFormsPage />} />
       <Route path="/forms/:id" element={<LeadFormEditorPage />} />
+      <Route path="/surveys" element={<SurveysPage />} />
+      <Route path="/surveys/:id" element={<SurveyDetailPage />} />
+      <Route path="/contacts" element={<ContactsPage />} />
+      <Route path="/campaigns" element={<CampaignsPage />} />
+      <Route path="/campaigns/:id" element={<CampaignEditorPage />} />
       <Route path="/chat" element={<LiveChatInboxPage />} />
       <Route path="/chat/visitors" element={<LiveChatVisitorsPage />} />
       <Route path="/chat/replies" element={<LiveChatRepliesPage />} />
@@ -125,6 +137,11 @@ function App() {
       <Route path="/r/:token" element={<ReviewLandingPage />} />
       {/* Public: a lead form's landing page (or ?embed=1 for websites) */}
       <Route path="/f/:slug" element={<PublicFormPage />} />
+      {/* Public: customer surveys (from the email, or the survey's public link / QR code) */}
+      <Route path="/nps/:token" element={<PublicSurveyPage />} />
+      <Route path="/nps/l/:key" element={<PublicSurveyPage mode="link" />} />
+      {/* Public: unsubscribe from campaigns (c) and surveys (s) */}
+      <Route path="/u/:kind/:token" element={<UnsubscribePage />} />
       {/* Public: a business's help centre (Live chat knowledge base) */}
       <Route path="/help/:key" element={<HelpCenterPage />} />
       <Route path="/help/:key/:articleId" element={<HelpCenterPage />} />
