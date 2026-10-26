@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { CheckCircle2, Loader2, Star } from 'lucide-react';
 import { surveyPublic } from '@/lib/surveys';
+import { useSite } from '@/lib/site';
 
 interface SurveyInfo {
   business: { name: string };
@@ -23,7 +24,9 @@ interface Outcome {
  * arrives as ?score=N and is saved straight away); /nps/l/:key is the public link / QR code.
  */
 export function PublicSurveyPage({ mode = 'token' }: { mode?: 'token' | 'link' }) {
-  const { token: routeToken = '', key = '' } = useParams();
+  const { token: routeToken = '', key: routeKey = '' } = useParams();
+  // On a connected domain (D3) the domain's route says which survey
+  const key = useSite()?.key ?? routeKey;
   const [params] = useSearchParams();
   const [info, setInfo] = useState<SurveyInfo | null>(null);
   const [error, setError] = useState<string | null>(null);

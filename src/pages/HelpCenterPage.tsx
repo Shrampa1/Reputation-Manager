@@ -2,10 +2,16 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, BookOpen, Loader2, Search } from 'lucide-react';
 import { fetchHelpArticle, fetchHelpList, searchHelp, sendHelpFeedback, type PublicArticle, type PublicArticleSummary } from '@/lib/knowledge';
+import { sitePath, useSite } from '@/lib/site';
 
 /** W3: a business's public help centre (no sign-in): /help/:key and /help/:key/:articleId */
 export function HelpCenterPage() {
-  const { key = '', articleId } = useParams();
+  const params = useParams();
+  // On a connected domain (D3) the help centre lives at the domain's route
+  const site = useSite();
+  const key = site?.key ?? params.key ?? '';
+  const articleId = site ? site.sub ?? undefined : params.articleId;
+  const helpPath = (id?: string) => (site ? sitePath(site, id) : `/help/${key}${id ? `/${id}` : ''}`);
   const [name, setName] = useState('');
   const [articles, setArticles] = useState<PublicArticleSummary[]>([]);
   const [results, setResults] = useState<PublicArticleSummary[] | null>(null);
@@ -46,7 +52,7 @@ export function HelpCenterPage() {
     <div className="min-h-screen bg-slate-50">
       <header className="bg-slate-900 text-white">
         <div className="max-w-3xl mx-auto px-4 py-8 space-y-4">
-          <Link to={`/help/${key}`} className="text-sm text-slate-300 hover:text-white">{name || 'Help centre'}</Link>
+          <Link to={helpPath()} className="text-sm text-slate-300 hover:text-white">{name || 'Help centre'}</Link>
           <h1 className="text-2xl sm:text-3xl font-bold">How can we help?</h1>
           {!articleId && (
             <div className="relative">
@@ -68,7 +74,7 @@ export function HelpCenterPage() {
         ) : error ? (
           <p className="text-sm text-slate-600">{error}</p>
         ) : articleId ? (
-          <ArticleView helpKey={key} id={articleId} />
+          <ArticleView helpKey={key} id={articleId} home={helpPath()} />
         ) : groups.length === 0 ? (
           <p className="text-sm text-slate-600">{results ? `Nothing found for “${query}”.` : 'No articles yet.'}</p>
         ) : (
@@ -79,7 +85,7 @@ export function HelpCenterPage() {
                 <ul className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100">
                   {items.map((a) => (
                     <li key={a.id}>
-                      <Link to={`/help/${key}/${a.id}`} className="block px-4 py-3 hover:bg-slate-50">
+                      <Link to={helpPath(a.id)} className="block px-4 py-3 hover:bg-slate-50">
                         <p className="text-sm font-medium text-slate-900">{a.title}</p>
                         <p className="text-xs text-slate-500 mt-0.5">{a.snippet}</p>
                       </Link>
@@ -95,7 +101,7 @@ export function HelpCenterPage() {
   );
 }
 
-function ArticleView({ helpKey, id }: { helpKey: string; id: string }) {
+function ArticleView({ helpKey, id, home }: { helpKey: string; id: string; home: string }) {
   const [article, setArticle] = useState<PublicArticle | null>(null);
   const [missing, setMissing] = useState(false);
   const [voted, setVoted] = useState<boolean | null>(null);
@@ -106,7 +112,7 @@ function ArticleView({ helpKey, id }: { helpKey: string; id: string }) {
     fetchHelpArticle(helpKey, id).then((r) => setArticle(r.article)).catch(() => setMissing(true));
   }, [helpKey, id]);
 
-  if (missing) return <p className="text-sm text-slate-600">This article isn’t available. <Link to={`/help/${helpKey}`} className="text-sky-600 hover:underline">All articles</Link></p>;
+  if (missing) return <p className="text-sm text-slate-600">This article isn’t available. <Link to={home} className="text-sky-600 hover:underline">All articles</Link></p>;
   if (!article) return <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 text-slate-400 animate-spin" /></div>;
 
   const vote = (helpful: boolean) => {
@@ -116,7 +122,7 @@ function ArticleView({ helpKey, id }: { helpKey: string; id: string }) {
 
   return (
     <article className="space-y-4">
-      <Link to={`/help/${helpKey}`} className="text-sm text-sky-600 hover:underline inline-flex items-center gap-1"><ArrowLeft className="w-4 h-4" /> All articles</Link>
+      <Link to={home} className="text-sm text-sky-600 hover:underline inline-flex items-center gap-1"><ArrowLeft className="w-4 h-4" /> All articles</Link>
       <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-8 space-y-4">
         {article.category && <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1"><BookOpen className="w-3 h-3" /> {article.category}</p>}
         <h2 className="text-xl sm:text-2xl font-bold text-slate-900">{article.title}</h2>

@@ -3,7 +3,7 @@ import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Star, MapPin, CalendarDays, Inbox, Megaphone, LogOut, Plug, UserCog, Users, History, CreditCard, ShieldCheck, KeyRound, Briefcase,
   FileText, Workflow, Target, MessageSquareText, ClipboardCheck, MapPinned, Crosshair, ListChecks, FileBarChart, MessagesSquare, ClipboardList, Gauge,
-  BookUser, Mail, ChevronDown,
+  BookUser, Mail, ChevronDown, Filter, Globe,
 } from 'lucide-react';
 import { useBranding } from '@/hooks/useBranding';
 import type { Permission } from '@/lib/permissions';
@@ -70,6 +70,8 @@ const sections: { id: string; label: string; items: NavItem[] }[] = [
     label: 'Marketing',
     items: [
       { label: 'Social', path: '/social', icon: CalendarDays },
+      { label: 'Funnels', path: '/funnels', icon: Filter },
+      { label: 'Domains', path: '/domains', icon: Globe, permission: 'business.edit' },
       { label: 'Email campaigns', path: '/campaigns', icon: Mail, permission: 'campaigns.send' },
       { label: 'Ads', path: '/ads', icon: Megaphone, permission: 'ads.view' },
     ],

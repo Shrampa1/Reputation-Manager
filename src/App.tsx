@@ -15,6 +15,7 @@ import { PortalPage } from '@/pages/PortalPage';
 import { BrandingEffect } from '@/hooks/useBranding';
 import { LiveChatWatcher } from '@/components/livechat/LiveChatWatcher';
 import { CallManager } from '@/components/livechat/CallManager';
+import { SiteContext, useHostSite, type SiteRoute } from '@/lib/site';
 
 // Pages are split into their own files and downloaded when first opened
 const page = <K extends string, P extends object>(name: K, load: () => Promise<Record<K, React.ComponentType<P>>>) =>
@@ -51,6 +52,10 @@ const HelpCenterPage = page('HelpCenterPage', () => import('@/pages/HelpCenterPa
 const LeadFormsPage = page('LeadFormsPage', () => import('@/pages/LeadFormsPage'));
 const LeadFormEditorPage = page('LeadFormEditorPage', () => import('@/pages/LeadFormEditorPage'));
 const PublicFormPage = page('PublicFormPage', () => import('@/pages/PublicFormPage'));
+const DomainsPage = page('DomainsPage', () => import('@/pages/DomainsPage'));
+const FunnelsPage = page('FunnelsPage', () => import('@/pages/FunnelsPage'));
+const FunnelEditorPage = page('FunnelEditorPage', () => import('@/pages/FunnelEditorPage'));
+const PublicFunnelPage = page('PublicFunnelPage', () => import('@/pages/PublicFunnelPage'));
 const SurveysPage = page('SurveysPage', () => import('@/pages/SurveysPage'));
 const SurveyDetailPage = page('SurveyDetailPage', () => import('@/pages/SurveyDetailPage'));
 const PublicSurveyPage = page('PublicSurveyPage', () => import('@/pages/PublicSurveyPage'));
@@ -87,6 +92,9 @@ function AppRoutes() {
       <Route path="/leads" element={<LeadsPage />} />
       <Route path="/forms" element={<LeadFormsPage />} />
       <Route path="/forms/:id" element={<LeadFormEditorPage />} />
+      <Route path="/funnels" element={<FunnelsPage />} />
+      <Route path="/funnels/:id" element={<FunnelEditorPage />} />
+      <Route path="/domains" element={<DomainsPage />} />
       <Route path="/surveys" element={<SurveysPage />} />
       <Route path="/surveys/:id" element={<SurveyDetailPage />} />
       <Route path="/contacts" element={<ContactsPage />} />
@@ -121,7 +129,44 @@ function AppRoutes() {
   );
 }
 
+/** A short page for connected domains with nothing to show (yet). */
+function DomainMessage({ title, text }: { title: string; text: string }) {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
+      <div className="card p-8 max-w-sm text-center">
+        <h1 className="text-base font-bold text-slate-900">{title}</h1>
+        <p className="text-sm text-slate-500 mt-1">{text}</p>
+      </div>
+    </div>
+  );
+}
+
+/** A page on a connected domain (D3): the funnel, form, survey or help centre its route shows. */
+function SitePage({ site }: { site: SiteRoute }) {
+  const id = `${site.type}-${site.slug ?? site.key}`;
+  switch (site.type) {
+    case 'funnel': return <PublicFunnelPage key={id} />;
+    case 'form': return <PublicFormPage key={id} />;
+    case 'survey': return <PublicSurveyPage key={id} mode="link" />;
+    case 'help': return <HelpCenterPage key={id} />;
+    default: return <DomainMessage title="Page not found" text={site.business ? `This page isn’t on ${site.business}’s site.` : 'This page doesn’t exist.'} />;
+  }
+}
+
 function App() {
+  // Customer domains and platform subdomains show a business’s pages instead of the app
+  const host = useHostSite();
+  if (host.state === 'loading') return <PageLoading />;
+  if (host.state === 'pending') return <DomainMessage title="This site is being set up" text="The address is connected but not live yet. Please check back soon." />;
+  if (host.state === 'site') {
+    return (
+      <Suspense fallback={<PageLoading />}>
+        <SiteContext.Provider value={host.site}>
+          <SitePage site={host.site} />
+        </SiteContext.Provider>
+      </Suspense>
+    );
+  }
   return (
     <Suspense fallback={<PageLoading />}>
     <>
@@ -137,6 +182,9 @@ function App() {
       <Route path="/r/:token" element={<ReviewLandingPage />} />
       {/* Public: a lead form's landing page (or ?embed=1 for websites) */}
       <Route path="/f/:slug" element={<PublicFormPage />} />
+      {/* Public: published funnels */}
+      <Route path="/s/:slug" element={<PublicFunnelPage />} />
+      <Route path="/s/:slug/:step" element={<PublicFunnelPage />} />
       {/* Public: customer surveys (from the email, or the survey's public link / QR code) */}
       <Route path="/nps/:token" element={<PublicSurveyPage />} />
       <Route path="/nps/l/:key" element={<PublicSurveyPage mode="link" />} />
