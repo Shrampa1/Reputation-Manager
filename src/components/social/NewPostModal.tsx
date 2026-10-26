@@ -7,10 +7,12 @@ import {
   Facebook,
   FileText,
   Globe,
+  ExternalLink,
   ImagePlus,
   Instagram,
   Loader2,
   Send,
+  ShoppingBag,
   Trash2,
   X,
 } from 'lucide-react';
@@ -130,7 +132,11 @@ export function NewPostModal({
         setScheduleAt(toLocalInput(new Date(post.scheduled_for)));
       } else {
         setMode('draft');
-        setScheduleAt(defaultScheduleTime());
+        // A draft can carry a suggested time (e.g. from the online store): prefill it for "Schedule"
+        const suggested = post.scheduled_for ? new Date(post.scheduled_for) : null;
+        setScheduleAt(
+          suggested && suggested.getTime() > Date.now() + MIN_SCHEDULE_LEAD_MS ? toLocalInput(suggested) : defaultScheduleTime(),
+        );
       }
     } else {
       const connected = PLATFORMS.map((p) => p.key).filter((p) => byProvider(PLATFORM_PROVIDER[p])?.status === 'connected');
@@ -196,8 +202,29 @@ export function NewPostModal({
   }, [platforms, content, maxLength, selected, mode, hasImage, hasVideo, tiktokSelected, disconnectedSelected, scheduleAt, tiktokOptions, tiktokInfo, duration]);
 
   const togglePlatform = (p: PostPlatform) => {
-    if (isEdit) return;
+    // An existing post is one platform: picking another moves it there
+    if (isEdit) {
+      setPlatforms([p]);
+      return;
+    }
     setPlatforms((prev) => (prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]));
+  };
+
+  // Online-store drafts keep the product's other photos to swap in
+  const productPhotos = useMemo(() => {
+    if (!post) return [];
+    return [...new Set([post.media_type === 'video' ? null : post.media_url, ...(post.extra_media_urls ?? [])])]
+      .filter((u): u is string => Boolean(u));
+  }, [post]);
+
+  const pickPhoto = (url: string) => {
+    setImageFile(null);
+    setExistingMediaUrl(url);
+    setImagePreview(url);
+    setMediaKind('image');
+    setDuration(null);
+    setError(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleFile = (file: File | undefined) => {
@@ -260,9 +287,10 @@ export function NewPostModal({
 
       let ids: string[];
       if (post) {
+        const platform = platforms[0] ?? post.platform;
         const { error: updateError } = await supabase
           .from('social_posts')
-          .update({ ...fields, options: optionsFor(post.platform) })
+          .update({ ...fields, platform, options: optionsFor(platform) })
           .eq('id', post.id);
         if (updateError) throw new Error(updateError.message);
         ids = [post.id];
@@ -334,7 +362,7 @@ export function NewPostModal({
     <Modal
       isOpen={isOpen}
       onClose={() => !submitting && onClose()}
-      title={isEdit ? 'Edit post' : 'New post'}
+      title={isEdit ? (post?.status === 'draft' ? 'Edit draft' : 'Edit post') : 'New post'}
       subtitle={isEdit ? undefined : 'Write once, publish to every selected platform'}
       maxWidth="lg"
     >
@@ -346,11 +374,42 @@ export function NewPostModal({
           </div>
         )}
 
+        {post?.source === 'multistore' && (
+          <div className="flex items-start gap-3 p-3 rounded-xl bg-orange-50/60 border border-orange-100">
+            <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-orange-100 text-orange-600 shrink-0">
+              <ShoppingBag className="w-4 h-4" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold text-orange-700">From your online store</p>
+              {post.product && (
+                <p className="text-sm font-semibold text-slate-900 truncate">
+                  {post.product.title}
+                  {post.product.price && <span className="font-medium text-slate-500"> · {post.product.price}</span>}
+                </p>
+              )}
+              {post.product?.url && (
+                <a
+                  href={post.product.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs font-medium text-sky-600 hover:text-sky-700"
+                >
+                  View product
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Platforms */}
         <div>
-          <p className="text-sm font-semibold text-slate-900 mb-2">{isEdit ? 'Platform' : 'Post to'}</p>
+          <p className="text-sm font-semibold text-slate-900 mb-2">
+            {isEdit ? 'Platform' : 'Post to'}
+            {isEdit && <span className="font-normal text-slate-400"> (pick another to move this post there)</span>}
+          </p>
           <div className="flex flex-wrap gap-2">
-            {PLATFORMS.filter((p) => !isEdit || platforms.includes(p.key)).map((p) => {
+            {PLATFORMS.map((p) => {
               const active = platforms.includes(p.key);
               const connected = isConnected(p.key);
               return (
@@ -358,11 +417,10 @@ export function NewPostModal({
                   key={p.key}
                   type="button"
                   onClick={() => togglePlatform(p.key)}
-                  disabled={isEdit}
                   aria-pressed={active}
                   className={`flex items-center gap-2 px-3 py-2 rounded-xl border-2 text-sm font-medium transition-all ${
                     active ? p.activeClass : 'border-slate-200 text-slate-500 hover:border-slate-300'
-                  } ${isEdit ? 'cursor-default' : ''}`}
+                  }`}
                 >
                   <p.icon className="w-4 h-4" />
                   {p.label}
@@ -465,6 +523,35 @@ export function NewPostModal({
             className="hidden"
             onChange={(e) => handleFile(e.target.files?.[0])}
           />
+          {productPhotos.length > 1 && (
+            <div className="mt-3">
+              <p className="text-xs font-semibold text-slate-500 mb-1.5">Product photos: pick the one to post</p>
+              <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
+                {productPhotos.map((url) => {
+                  const chosen = !imageFile && existingMediaUrl === url;
+                  return (
+                    <button
+                      key={url}
+                      type="button"
+                      onClick={() => pickPhoto(url)}
+                      aria-pressed={chosen}
+                      aria-label="Use this photo"
+                      className={`relative shrink-0 rounded-lg border-2 overflow-hidden transition-all ${
+                        chosen ? 'border-sky-400' : 'border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      <img src={url} alt="" className="h-16 w-16 object-cover" />
+                      {chosen && (
+                        <span className="absolute top-1 right-1 flex items-center justify-center w-4 h-4 rounded-full bg-sky-500 text-white">
+                          <Check className="w-3 h-3" />
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {tiktokSelected && (

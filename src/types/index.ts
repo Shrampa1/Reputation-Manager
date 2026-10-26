@@ -100,6 +100,14 @@ export interface TikTokPostOptions {
   branded_content?: boolean;
 }
 
+/** The product an online-store draft was made from (migration 046) */
+export interface SocialPostProduct {
+  title: string;
+  price: string | null;
+  url: string | null;
+  link?: string | null;
+}
+
 export interface SocialPost {
   id: string;
   location_id: string;
@@ -115,9 +123,15 @@ export interface SocialPost {
   external_post_id: string | null;
   external_url: string | null;
   last_error: string | null;
-  /** 'api' when a connected app (e.g. S.Ops) created the draft; source_note says what it was */
-  source?: 'app' | 'api';
+  /** 'api' when a connected app (e.g. S.Ops) created the draft; source_note says what it was.
+   *  'multistore' when the online store sent a product (migration 046). */
+  source?: 'app' | 'api' | 'multistore';
   source_note?: string | null;
+  /** Online store products: "<store_id>:<product_id>" */
+  external_id?: string | null;
+  product?: SocialPostProduct | null;
+  /** The product's other photos (already in post-media) the editor can swap in */
+  extra_media_urls?: string[] | null;
   /** Client approval (migration 030): pending and changes_requested posts can't publish */
   approval_status?: 'pending' | 'approved' | 'changes_requested' | null;
   approval_note?: string | null;

@@ -246,6 +246,12 @@ export function ApiWebhooksSection() {
                             Also available: <code>GET /me</code> (test the key), <code>GET /review-requests</code>, <code>DELETE /review-requests/&#123;id&#125;</code> (cancel a scheduled one),
                             and <code>POST /webhooks</code> / <code>DELETE /webhooks/&#123;id&#125;</code> for apps that subscribe themselves.
                           </p>
+                          <p className="text-xs text-slate-500">
+                            Online stores: <code>POST /social-posts</code> with <code>source</code>, <code>external_id</code>, <code>platforms</code> (facebook, instagram, tiktok),{' '}
+                            <code>content</code>, <code>link</code>, <code>media_urls</code>, <code>scheduled_for</code> and <code>product</code> saves a product as a draft post per
+                            platform (send an <code>Idempotency-Key</code> header so retries are safe); <code>GET /social-posts?source=multistore&amp;external_id=…</code> shows
+                            their status. Drafts appear in Social → Drafts.
+                          </p>
                         </>
                       )}
                     </div>

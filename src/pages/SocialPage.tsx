@@ -1,8 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { APPROVAL_BADGE } from '@/lib/approvals';
+import { supabase } from '@/lib/supabase';
 import {
   CalendarDays,
   Plus,
+  ShoppingBag,
+  Trash2,
+  FilePen,
   Star,
   Image as ImageIcon,
   Facebook,
@@ -83,7 +88,10 @@ export function SocialPage() {
   const [composerPlatforms, setComposerPlatforms] = useState<PostPlatform[] | undefined>(undefined);
   const [composerScheduleAt, setComposerScheduleAt] = useState<Date | null>(null);
   const [composerImage, setComposerImage] = useState<File | null>(null);
-  const [view, setView] = useState<'calendar' | 'list'>('calendar');
+  const [view, setView] = useState<'calendar' | 'list' | 'drafts'>('calendar');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const deepLinkHandled = useRef<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
   const calendarDays = useMemo(() => buildMonthGrid(month), [month]);
   const todayKey = localDateKey(new Date());
@@ -112,6 +120,57 @@ export function SocialPage() {
     setEditingPost(post);
     setComposerOpen(true);
   };
+
+  // Deep link from the online store (or a notification): /social?post=<id> opens that post's editor
+  const deepLinkId = searchParams.get('post');
+  useEffect(() => {
+    if (!deepLinkId || postsLoading || deepLinkHandled.current === deepLinkId) return;
+    deepLinkHandled.current = deepLinkId;
+    const post = posts.find((p) => p.id === deepLinkId);
+    if (!post) {
+      showToast('That post wasn’t found. It may have been deleted.');
+    } else if (!isEditable(post)) {
+      setView('list');
+      showToast(post.status === 'published' ? 'That post is already published.' : 'That post is being published right now.');
+    } else {
+      setView(post.status === 'draft' ? 'drafts' : 'list');
+      openEditor(post);
+      return;
+    }
+    clearDeepLink();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run when the link or the loaded posts change
+  }, [deepLinkId, postsLoading, posts]);
+
+  const clearDeepLink = () => {
+    if (!searchParams.has('post')) return;
+    const next = new URLSearchParams(searchParams);
+    next.delete('post');
+    setSearchParams(next, { replace: true });
+  };
+
+  const closeComposer = () => {
+    setComposerOpen(false);
+    clearDeepLink();
+  };
+
+  const deleteDraft = async (post: SocialPost) => {
+    if (!window.confirm('Delete this draft? This can’t be undone.')) return;
+    setDeletingId(post.id);
+    const { error } = await supabase.from('social_posts').delete().eq('id', post.id);
+    setDeletingId(null);
+    if (error) {
+      showToast(`Couldn’t delete the draft: ${error.message}`);
+      return;
+    }
+    showToast('Draft deleted');
+    refetchPosts();
+  };
+
+  const drafts = useMemo(
+    () => posts.filter((p) => p.status === 'draft').sort((a, b) => b.created_at.localeCompare(a.created_at)),
+    [posts],
+  );
+  const listedPosts = view === 'drafts' ? drafts : posts;
 
   const openGraphicModal = (review: Review) => setSelectedReview(review);
 
@@ -222,6 +281,20 @@ export function SocialPage() {
               <FileText className="w-4 h-4" />
               List
             </button>
+            <button
+              onClick={() => setView('drafts')}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                view === 'drafts' ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-600'
+              }`}
+            >
+              <FilePen className="w-4 h-4" />
+              Drafts
+              {drafts.length > 0 && (
+                <span className={`ml-0.5 px-1.5 rounded-full text-[11px] font-semibold ${view === 'drafts' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                  {drafts.length}
+                </span>
+              )}
+            </button>
           </div>
 
           {/* Calendar View */}
@@ -317,14 +390,18 @@ export function SocialPage() {
           )}
 
           {/* List View */}
-          {view === 'list' && (
+          {(view === 'list' || view === 'drafts') && (
             <div className="space-y-3">
-              {posts.length === 0 && (
+              {listedPosts.length === 0 && (
                 <div className="card p-8 text-center">
-                  <p className="text-sm text-slate-500">No posts scheduled yet.</p>
+                  <p className="text-sm text-slate-500">
+                    {view === 'drafts'
+                      ? 'No drafts. Products you share from your online store, and posts you save as drafts, show up here.'
+                      : 'No posts scheduled yet.'}
+                  </p>
                 </div>
               )}
-              {posts.map((post) => {
+              {listedPosts.map((post) => {
                 const PlatformIcon = platformIconMap[post.platform] || Globe;
                 const status = statusConfig[post.status] || statusConfig.draft;
                 return (
@@ -350,6 +427,12 @@ export function SocialPage() {
                               {post.source_note}
                             </span>
                           )}
+                          {post.source === 'multistore' && (
+                            <span className="badge bg-orange-50 text-orange-700 inline-flex items-center gap-1" title="Sent from your online store. Check it, then schedule or publish.">
+                              <ShoppingBag className="w-3 h-3" />
+                              From your online store
+                            </span>
+                          )}
                           <span className="text-xs text-slate-400 flex items-center gap-1">
                             <Clock className="w-3 h-3" />
                             {post.scheduled_for
@@ -357,7 +440,13 @@ export function SocialPage() {
                               : 'Not scheduled'}
                           </span>
                         </div>
-                        <p className="text-sm text-slate-600 leading-relaxed">{post.content}</p>
+                        {post.source === 'multistore' && post.product && (
+                          <p className="text-sm font-semibold text-slate-800 mb-1">
+                            {post.product.title}
+                            {post.product.price && <span className="font-medium text-slate-500"> · {post.product.price}</span>}
+                          </p>
+                        )}
+                        <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-line line-clamp-6">{post.content}</p>
                         {post.media_url && post.media_type === 'video' ? (
                           <video src={post.media_url} muted preload="metadata" className="mt-2 h-20 w-auto rounded-lg border border-slate-100 bg-slate-900" />
                         ) : post.media_url ? (
@@ -385,6 +474,21 @@ export function SocialPage() {
                           </a>
                         )}
                       </div>
+                      {post.status === 'draft' && canPublish && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteDraft(post);
+                          }}
+                          disabled={deletingId === post.id}
+                          className="btn-ghost p-2 text-slate-400 hover:text-rose-600 shrink-0"
+                          aria-label="Delete draft"
+                          title="Delete draft"
+                        >
+                          {deletingId === post.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -406,7 +510,7 @@ export function SocialPage() {
 
       <NewPostModal
         isOpen={composerOpen}
-        onClose={() => setComposerOpen(false)}
+        onClose={closeComposer}
         location={location}
         byProvider={byProvider}
         post={editingPost}

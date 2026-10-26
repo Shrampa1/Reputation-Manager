@@ -38,6 +38,11 @@ export function OnlineStoreSection() {
           Optional: in the theme editor, add the <b>Reputation Engine reviews</b> section to your home or product page. Switch the
           widget on first in Settings → Website reviews widget.
         </li>
+        <li>
+          Optional: on a product in Multistore, choose <b>Share to social</b>. It arrives here as a draft in{' '}
+          <a href="/social" className="font-medium text-sky-600 hover:text-sky-700">Social → Drafts</a>, where you can edit it and publish it to
+          your Facebook Page, Instagram or TikTok.
+        </li>
       </ol>
 
       <div className="flex flex-wrap items-center gap-2 mt-4">
