@@ -111,7 +111,7 @@ export const MAX_INFO = 8000;
 const COLUMNS = 'enabled, greeting, accent, position, business_info, collect_leads, widget, updated_at';
 
 /** Saved settings merged over the defaults (older rows have no widget settings). */
-const withDefaults = (s: Partial<ChatSettings> | null): ChatSettings => {
+export const withDefaults = (s: Partial<ChatSettings> | null): ChatSettings => {
   const w = (s?.widget ?? {}) as WidgetConfig;
   return {
     ...DEFAULT_CHAT,
@@ -131,7 +131,7 @@ const withDefaults = (s: Partial<ChatSettings> | null): ChatSettings => {
 };
 
 /** Drops empty values so the saved JSON stays small. */
-function compactWidget(w: WidgetConfig): WidgetConfig {
+export function compactWidget(w: WidgetConfig): WidgetConfig {
   const texts = Object.fromEntries(Object.entries(w.texts ?? {}).filter(([k, v]) => v && v.trim() && v !== TEXT_DEFAULTS[k as TextKey]));
   return {
     ...w,

@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { AlertCircle, Check, CheckCircle2, Copy, Loader2, Plus, Save, Trash2 } from 'lucide-react';
 import { useLocationContext } from '@/context/LocationContext';
+import { fetchTeam } from '@/lib/team';
+import type { TeamMember } from '@/types';
+import { MAX_EXTRA_INFO, useChatWidgets, widgetExtras, widgetToSettings, type WidgetExtras } from '@/lib/chatWidgets';
 import {
   DEFAULT_CHAT,
   MAX_INFO,
@@ -42,20 +45,47 @@ const timeZones = (() => {
 
 /** Live chat → Settings: the AI assistant, how the chat looks and behaves, and the code for the website. */
 export function WebsiteChatPage() {
-  const { location, can } = useLocationContext();
+  const { location, organization, can } = useLocationContext();
   const canEdit = can('business.edit');
   const { settings, usage, callsAvailable, loading, loadError, save } = useWebsiteChat();
+  const chatWidgets = useChatWidgets();
+  const [params, setParams] = useSearchParams();
+  // 'main' = the business's main widget (chat_settings); otherwise an extra widget's id
+  const selected = chatWidgets.widgets.some((x) => x.id === params.get('widget')) ? (params.get('widget') as string) : 'main';
+  const current = chatWidgets.widgets.find((x) => x.id === selected) ?? null;
   const [form, setForm] = useState<ChatSettings>(DEFAULT_CHAT);
+  const [extras, setExtras] = useState<WidgetExtras>({ name: '', extra_info: '', ai_enabled: true, agent_name: null, assign_to: null });
+  const [team, setTeam] = useState<TeamMember[]>([]);
   const [section, setSection] = useState<Section>('general');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    if (settings) setForm(settings);
-  }, [settings]);
+    if (current) {
+      setForm(widgetToSettings(current));
+      setExtras(widgetExtras(current));
+    } else if (settings) {
+      setForm(settings);
+    }
+    // Only when switching widgets or after loading/saving, not on every edit
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings, current?.id, current?.updated_at]);
 
-  const key = location?.public_key;
+  useEffect(() => {
+    if (organization) fetchTeam(organization.id).then((m) => setTeam(m.filter((x) => !x.is_client))).catch(() => setTeam([]));
+  }, [organization]);
+
+  const pick = (id: string) => {
+    setMessage(null);
+    setParams((p) => {
+      if (id === 'main') p.delete('widget');
+      else p.set('widget', id);
+      return p;
+    }, { replace: true });
+  };
+
+  const key = current ? current.key : location?.public_key;
   const snippet = key ? chatSnippet(key) : '';
   const set = <K extends keyof ChatSettings>(k: K, v: ChatSettings[K]) => setForm((f) => ({ ...f, [k]: v }));
   const w = form.widget;
@@ -63,9 +93,13 @@ export function WebsiteChatPage() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (form.enabled && form.business_info.trim().length < 30) {
+    if (!current && form.enabled && form.business_info.trim().length < 30) {
       setSection('general');
       return setMessage({ ok: false, text: 'Tell the assistant a little about your business first (at least a couple of sentences).' });
+    }
+    if (current && !extras.name.trim()) {
+      setSection('general');
+      return setMessage({ ok: false, text: 'Give this widget a name.' });
     }
     if (w.appearance?.logo_url && !/^https:\/\//i.test(w.appearance.logo_url)) {
       setSection('appearance');
@@ -73,9 +107,31 @@ export function WebsiteChatPage() {
     }
     setSaving(true);
     setMessage(null);
-    const error = await save(form);
+    const error = current ? (await chatWidgets.save(current.id, form, extras)).error : await save(form);
     setSaving(false);
     setMessage(error ? { ok: false, text: error } : { ok: true, text: form.enabled ? 'Saved. The chat on your website updates within 5 minutes.' : 'Saved. The chat is switched off.' });
+  };
+
+  const addWidget = async () => {
+    const name = window.prompt('Name for the new chat widget (only your team sees it), e.g. Sales, Support, Spring funnel');
+    if (!name?.trim()) return;
+    try {
+      // Starts as a copy of the main widget's look and behaviour
+      const created = await chatWidgets.create(name, settings ?? DEFAULT_CHAT);
+      pick(created.id);
+      setSection('general');
+      setMessage({ ok: true, text: `“${created.name}” created. Change what you like, save, then copy its code from Install.` });
+    } catch (err) {
+      setMessage({ ok: false, text: err instanceof Error ? err.message : 'Couldn’t create the widget' });
+    }
+  };
+
+  const deleteWidget = async () => {
+    if (!current || !window.confirm(`Delete “${current.name}”? Websites using its code stop showing the chat. Its past chats stay in the Inbox.`)) return;
+    const error = await chatWidgets.remove(current.id);
+    if (error) return setMessage({ ok: false, text: error });
+    pick('main');
+    setMessage({ ok: true, text: 'Widget deleted.' });
   };
 
   const copy = async () => {
@@ -89,8 +145,10 @@ export function WebsiteChatPage() {
   };
 
   // The saved chat exactly as a website shows it (cache-busted after each save)
-  const previewDoc = key && settings?.enabled
-    ? `<!doctype html><html><head><meta charset="utf-8"><title>Your website</title><style>body{margin:0;background:#f1f5f9;font:14px system-ui;color:#64748b;padding:16px}</style></head><body>Your website<script src="${window.location.origin}/chat.js" data-key="${key}" data-api="${chatApi()}?v=${encodeURIComponent(settings.updated_at ?? '')}" data-open="true"></script></body></html>`
+  const savedOn = current ? current.enabled : settings?.enabled;
+  const version = current ? current.updated_at : settings?.updated_at;
+  const previewDoc = key && savedOn
+    ? `<!doctype html><html><head><meta charset="utf-8"><title>Your website</title><style>body{margin:0;background:#f1f5f9;font:14px system-ui;color:#64748b;padding:16px}</style></head><body>Your website<script src="${window.location.origin}/chat.js" data-key="${key}" data-api="${chatApi()}?v=${encodeURIComponent(version ?? '')}" data-open="true"></script></body></html>`
     : null;
 
   if (loading) return <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 text-sky-500 animate-spin" /></div>;
@@ -98,6 +156,22 @@ export function WebsiteChatPage() {
   return (
     <div className="space-y-5">
       <LiveChatHeader subtitle="How the chat looks and behaves on your website, what the AI knows, and the code to add it." />
+
+      <div className="card p-3 flex items-center gap-2 flex-wrap">
+        <span className="text-sm font-medium text-slate-700 px-1">Widget</span>
+        <div className="flex gap-1 flex-wrap flex-1" role="tablist" aria-label="Chat widgets">
+          {[{ id: 'main', name: 'Main widget', on: settings?.enabled }, ...chatWidgets.widgets.map((x) => ({ id: x.id, name: x.name, on: x.enabled }))].map((x) => (
+            <button key={x.id} type="button" role="tab" aria-selected={selected === x.id} onClick={() => pick(x.id)}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium inline-flex items-center gap-1.5 ${selected === x.id ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${x.on ? 'bg-emerald-400' : 'bg-slate-400'}`} aria-hidden />
+              {x.name}
+            </button>
+          ))}
+        </div>
+        {canEdit && !chatWidgets.error && <button type="button" onClick={addWidget} className="btn-secondary text-sm"><Plus className="w-4 h-4" /> New widget</button>}
+        {canEdit && current && <button type="button" onClick={deleteWidget} className="p-2 text-slate-400 hover:text-rose-600" aria-label={`Delete ${current.name}`} title="Delete this widget"><Trash2 className="w-4 h-4" /></button>}
+      </div>
+      {chatWidgets.error && <p className="text-xs text-slate-500">Extra widgets need migration 046 ({chatWidgets.error}).</p>}
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-5 items-start">
         <form onSubmit={submit} className="card overflow-hidden">
@@ -117,7 +191,49 @@ export function WebsiteChatPage() {
           </div>
 
           <fieldset disabled={!canEdit} className="p-5 space-y-5">
-            {section === 'general' && (
+            {section === 'general' && current && (
+              <>
+                <label className="flex items-center gap-2 text-sm font-medium text-slate-800">
+                  <input type="checkbox" className="rounded border-slate-300" checked={form.enabled} onChange={(e) => set('enabled', e.target.checked)} />
+                  This widget is on
+                </label>
+                <Field label="Name" hint="only your team sees it">
+                  <input className="input-field" maxLength={60} value={extras.name} onChange={(e) => setExtras({ ...extras, name: e.target.value })} aria-label="Widget name" />
+                </Field>
+                <div>
+                  <label htmlFor="wc-extra" className="block text-sm font-medium text-slate-700 mb-1.5">
+                    What this chat is for <span className="font-normal text-slate-400">(added to your business details for the AI)</span>
+                  </label>
+                  <textarea id="wc-extra" className="input-field text-sm" rows={5} maxLength={MAX_EXTRA_INFO}
+                    placeholder={'This chat is on our spring whitening offer page. Focus on the €99 whitening offer, valid until 31 May, and help people book a free consultation.'}
+                    value={extras.extra_info} onChange={(e) => setExtras({ ...extras, extra_info: e.target.value })} />
+                  <p className="text-xs text-slate-400 mt-1">The AI also knows everything from the main widget’s “About your business” and your help articles.</p>
+                </div>
+                <div>
+                  <label htmlFor="wc-greeting" className="block text-sm font-medium text-slate-700 mb-1.5">First message</label>
+                  <input id="wc-greeting" className="input-field" maxLength={200} value={form.greeting} onChange={(e) => set('greeting', e.target.value)} required />
+                </div>
+                <Toggle checked={extras.ai_enabled} onChange={(v) => setExtras({ ...extras, ai_enabled: v })}
+                  label="AI answers in this widget" hint="Off: every chat waits for your team (visitors get a “someone will reply shortly” message)." />
+                {extras.ai_enabled && (
+                  <Field label="AI name in this widget" hint="the AI agent’s name if empty">
+                    <input className="input-field" maxLength={40} value={extras.agent_name ?? ''} onChange={(e) => setExtras({ ...extras, agent_name: e.target.value })} aria-label="AI name" />
+                  </Field>
+                )}
+                <Field label="New chats go to">
+                  <select className="input-field" value={extras.assign_to ?? ''} onChange={(e) => setExtras({ ...extras, assign_to: e.target.value || null })} aria-label="New chats go to">
+                    <option value="">Nobody in particular (whole team)</option>
+                    {team.map((m) => <option key={m.user_id} value={m.user_id}>{m.full_name || m.email}</option>)}
+                  </select>
+                </Field>
+                <Toggle checked={form.collect_leads} onChange={(v) => set('collect_leads', v)}
+                  label="Collect leads" hint="Visitors who leave an email or phone become leads." />
+                <Toggle checked={w.suggestions !== false} onChange={(v) => setW('suggestions', v)}
+                  label="Suggest follow-up questions" hint="Under each AI answer, 2–3 questions the visitor might ask next." />
+              </>
+            )}
+
+            {section === 'general' && !current && (
               <>
                 <label className="flex items-center gap-2 text-sm font-medium text-slate-800">
                   <input type="checkbox" className="rounded border-slate-300" checked={form.enabled} onChange={(e) => set('enabled', e.target.checked)} />
@@ -371,7 +487,11 @@ export function WebsiteChatPage() {
 
             {section === 'install' && (
               <div className="space-y-3">
-                <p className="text-sm text-slate-500">Paste this once, on every page (usually in the footer or just before <code className="text-xs">&lt;/body&gt;</code>).</p>
+                <p className="text-sm text-slate-500">
+                  {current
+                    ? <>Paste this code on the pages where <strong>{current.name}</strong> should appear (instead of the main widget’s code there).</>
+                    : <>Paste this once, on every page (usually in the footer or just before <code className="text-xs">&lt;/body&gt;</code>).</>}
+                </p>
                 <pre className="p-3 rounded-xl bg-slate-900 text-slate-100 text-[11px] leading-relaxed overflow-x-auto whitespace-pre-wrap break-all">{snippet}</pre>
                 <button type="button" onClick={copy} disabled={!snippet} className="btn-secondary text-sm">
                   {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />} {copied ? 'Copied' : 'Copy code'}
@@ -381,7 +501,7 @@ export function WebsiteChatPage() {
                     <div key={name}><dt className="inline font-semibold text-slate-700">{name}: </dt><dd className="inline text-slate-500">{how}</dd></div>
                   ))}
                 </dl>
-                {key && (
+                {key && !current && (
                   <p className="text-xs text-slate-500 pt-2 border-t border-slate-100">
                     Public help centre: <a href={`/help/${key}`} target="_blank" rel="noopener noreferrer" className="text-sky-600 hover:underline">{window.location.origin}/help/{key}</a>
                   </p>

@@ -386,6 +386,8 @@ export interface ChatAnalytics {
   chats: number;
   /** Chats per channel (W5): web_chat, messenger, instagram */
   by_channel?: Record<string, number>;
+  /** Website chats per widget id ('default' = the main widget), migration 046 */
+  by_widget?: Record<string, number>;
   visitor_messages: number;
   ai_answers: number;
   team_replies: number;

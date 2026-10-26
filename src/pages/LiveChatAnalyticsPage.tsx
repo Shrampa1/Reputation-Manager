@@ -4,6 +4,7 @@ import { useLocationContext } from '@/context/LocationContext';
 import { fetchChatAnalytics, pagePath, type CallStats, type ChatAnalytics } from '@/lib/liveChat';
 import { LiveChatHeader } from '@/components/livechat/LiveChatHeader';
 import { channelLabel } from '@/lib/aiAgent';
+import { useChatWidgets } from '@/lib/chatWidgets';
 
 const RANGES: [number, string][] = [[7, 'Last 7 days'], [30, 'Last 30 days'], [90, 'Last 90 days']];
 
@@ -38,6 +39,8 @@ export function LiveChatAnalyticsPage() {
   }, [location, days]);
 
   const a = data?.analytics;
+  const { widgets } = useChatWidgets();
+  const widgetLabel = (id: string) => (id === 'default' ? 'Main widget' : widgets.find((w) => w.id === id)?.name ?? 'Deleted widget');
   const calls = data?.calls;
 
   return (
@@ -95,6 +98,9 @@ export function LiveChatAnalyticsPage() {
               )}
             </section>
             <TableCard title="Chats by channel" empty="No chats yet." rows={Object.entries(a.by_channel ?? {}).sort((x, y) => y[1] - x[1]).map(([ch, n]) => [channelLabel(ch), n])} />
+            {widgets.length > 0 && (
+              <TableCard title="Website chats by widget" empty="No website chats yet." rows={Object.entries(a.by_widget ?? {}).sort((x, y) => y[1] - x[1]).map(([id, n]) => [widgetLabel(id), n])} />
+            )}
             <TableCard title="Top pages chats start on" empty="No chats yet." rows={a.top_pages.map((p) => [pagePath(p.page) ?? p.page, p.chats])} />
             <TableCard title="Tags" empty="No tags yet. Add them from the visitor panel in the Inbox." rows={a.top_tags.map((t) => [t.tag, t.chats])} />
           </div>

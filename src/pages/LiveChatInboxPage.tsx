@@ -7,6 +7,8 @@ import { relativeTime } from '@/lib/activity';
 import { fetchTeam } from '@/lib/team';
 import { isUnread, needsTeam, useCannedResponses, useInbox, visitorLabel, type InboxConversation } from '@/lib/liveChat';
 import { useWebsiteChat } from '@/lib/websiteChat';
+import { useChatWidgets } from '@/lib/chatWidgets';
+import { supabase } from '@/lib/supabase';
 import { LiveChatHeader } from '@/components/livechat/LiveChatHeader';
 import { ChannelIcon } from '@/components/livechat/ChannelIcon';
 import { CHANNELS } from '@/lib/aiAgent';
@@ -30,6 +32,18 @@ export function LiveChatInboxPage() {
   const [filter, setFilter] = useState<Filter>('open');
   const [query, setQuery] = useState('');
   const [channel, setChannel] = useState<string>('all');
+  const [widgetFilter, setWidgetFilter] = useState<string>('all');
+  const { widgets } = useChatWidgets();
+  // Which extra widget each chat came from (046); loaded on its own so the inbox works without the migration
+  const [widgetOf, setWidgetOf] = useState<Record<string, string>>({});
+  const widgetCount = widgets.length;
+  const convoCount = conversations.length;
+  useEffect(() => {
+    if (!widgetCount) return;
+    supabase.from('chat_conversations').select('id, widget_id').not('widget_id', 'is', null).order('last_message_at', { ascending: false }).limit(1000)
+      .then(({ data }) => setWidgetOf(Object.fromEntries((data ?? []).map((r) => [r.id as string, r.widget_id as string]))));
+  }, [widgetCount, convoCount]);
+  const widgetName = (id: string) => widgets.find((w) => w.id === widgetOf[id])?.name;
   const selectedId = params.get('c');
 
   useEffect(() => {
@@ -56,10 +70,11 @@ export function LiveChatInboxPage() {
         return true;
       })
       .filter((c) => channel === 'all' || c.channel === channel)
+      .filter((c) => widgetFilter === 'all' || (widgetFilter === 'main' ? c.channel === 'web_chat' && !widgetOf[c.id] : widgetOf[c.id] === widgetFilter))
       .filter((c) => !q || [c.visitor_name, c.visitor_email, c.visitor_phone, c.last_message_preview, ...c.tags].some((v) => v?.toLowerCase().includes(q)))
       // Chats waiting for the team first
       .sort((a, b) => Number(needsTeam(b)) - Number(needsTeam(a)));
-  }, [conversations, filter, query, user, channel]);
+  }, [conversations, filter, query, user, channel, widgetFilter, widgetOf]);
 
   const selected = conversations.find((c) => c.id === selectedId) ?? null;
   const open = useCallback((id: string | null) => setParams(id ? { c: id } : {}, { replace: true }), [setParams]);
@@ -87,6 +102,13 @@ export function LiveChatInboxPage() {
                 {CHANNELS.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
               </select>
             )}
+            {widgets.length > 0 && (
+              <select className="input-field !py-1 text-sm" value={widgetFilter} onChange={(e) => setWidgetFilter(e.target.value)} aria-label="Chat widget">
+                <option value="all">All widgets</option>
+                <option value="main">Main widget</option>
+                {widgets.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+              </select>
+            )}
             <div className="flex gap-1 flex-wrap">
               {filters.map(([key, label]) => (
                 <button
@@ -107,7 +129,7 @@ export function LiveChatInboxPage() {
               <p className="text-sm text-slate-500 p-4">{filter === 'waiting' ? 'Nobody is waiting for the team.' : 'No chats here.'}</p>
             ) : (
               <ul>
-                {shown.map((c) => <ConversationItem key={c.id} c={c} active={c.id === selectedId} team={team} me={user?.id} onClick={() => open(c.id)} />)}
+                {shown.map((c) => <ConversationItem key={c.id} c={c} widget={widgetName(c.id)} active={c.id === selectedId} team={team} me={user?.id} onClick={() => open(c.id)} />)}
               </ul>
             )}
           </div>
@@ -142,7 +164,7 @@ export function LiveChatInboxPage() {
   );
 }
 
-function ConversationItem({ c, active, team, me, onClick }: { c: InboxConversation; active: boolean; team: TeamMember[]; me?: string; onClick: () => void }) {
+function ConversationItem({ c, widget, active, team, me, onClick }: { c: InboxConversation; widget?: string; active: boolean; team: TeamMember[]; me?: string; onClick: () => void }) {
   const unread = isUnread(c);
   const assignee = c.assigned_to ? team.find((m) => m.user_id === c.assigned_to) : null;
   const assigneeName = c.assigned_to === me ? 'Me' : assignee?.full_name?.split(' ')[0] || assignee?.email.split('@')[0];
@@ -174,6 +196,7 @@ function ConversationItem({ c, active, team, me, onClick }: { c: InboxConversati
             {c.mode === 'agent' && c.status === 'open' && <span className="text-[11px] font-medium text-violet-700 bg-violet-50 rounded-full px-1.5 py-0.5 inline-flex items-center gap-0.5"><Headset className="w-3 h-3" /> Team</span>}
             {c.status === 'resolved' && <span className="text-[11px] text-slate-500 bg-slate-100 rounded-full px-1.5 py-0.5">Resolved</span>}
             {c.rating && <span className="text-[11px] text-amber-700 inline-flex items-center gap-0.5"><Star className="w-3 h-3 fill-amber-400 text-amber-400" />{c.rating}</span>}
+            {widget && <span className="text-[11px] text-sky-700 bg-sky-50 rounded-full px-1.5 py-0.5">{widget}</span>}
             {assigneeName && <span className="text-[11px] text-slate-500">→ {assigneeName}</span>}
             {c.tags.slice(0, 2).map((t) => <span key={t} className="text-[11px] text-slate-500 bg-slate-100 rounded-full px-1.5 py-0.5">{t}</span>)}
           </div>
